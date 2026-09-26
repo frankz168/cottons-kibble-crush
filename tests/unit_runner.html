@@ -98,6 +98,48 @@
             } catch (e) {
                 assert(false, "Swap Logic threw an error: " + e);
             }
+            // Test 5: Cat Thief Movement
+            try {
+                const model = new GameModel(100);
+                model.initGrid(['🦴', '🍪'], 0, 1); // Spawn exactly 1 cat
+                
+                // Find the cat
+                let catCount = 0;
+                let catTile = null;
+                for(let c = 0; c < 8; c++) {
+                    for(let r = 0; r < 8; r++) {
+                        if(model.grid[c][r].isCat) {
+                            catCount++;
+                            catTile = model.grid[c][r];
+                        }
+                    }
+                }
+                
+                assert(catCount === 1, "Grid should spawn exactly 1 Cat Thief");
+                
+                const initialC = catTile.c;
+                const initialR = catTile.r;
+                
+                // Test moveCats
+                model.moveCats();
+                
+                // Find the cat again
+                let newCatTile = null;
+                for(let c = 0; c < 8; c++) {
+                    for(let r = 0; r < 8; r++) {
+                        if(model.grid[c][r].isCat) {
+                            newCatTile = model.grid[c][r];
+                        }
+                    }
+                }
+                
+                const moved = (initialC !== newCatTile.c) || (initialR !== newCatTile.r);
+                assert(moved, "Cat Thief should move to a new adjacent tile after moveCats() is called");
+                assert(newCatTile.moveCount === 1, "Cat Thief moveCount should increment to 1");
+                
+            } catch (e) {
+                assert(false, "Cat Thief Logic threw an error: " + e);
+            }
             
             const div = document.createElement('div');
             div.innerHTML = `<br><b>✨ All test suites completed!</b>`;

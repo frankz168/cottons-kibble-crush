@@ -1,4 +1,6 @@
 import { STATE, COLS, ROWS } from '../constants.js';
+import { InputController } from './InputController.js';
+import { GameLoop } from './GameLoop.js';
 
 export class GameController {
     constructor(model, view, repository) {
@@ -6,16 +8,17 @@ export class GameController {
         this.view = view;
         this.repository = repository;
         
-        this.lastTime = 0;
-        this.selectedTile = null;
-        this.startX = 0;
-        this.startY = 0;
-        this.isDragging = false;
-        
         this.tile1 = null;
         this.tile2 = null;
 
-        this.bindEvents();
+        // Setup Controllers
+        this.input = new InputController(this.view.canvas || document.getElementById('gameCanvas'), this.view.tileSize);
+        this.input.onTileClick = this.onTileClick.bind(this);
+        this.input.onSwipe = this.onSwipe.bind(this);
+        this.input.onDragStart = this.onDragStart.bind(this);
+        this.input.onDragEnd = this.onDragEnd.bind(this);
+
+        this.gameLoop = new GameLoop(this.update.bind(this), this.render.bind(this));
     }
     
     activateBooster(type) {
@@ -34,123 +37,72 @@ export class GameController {
         this.view.updateHUD(this.gameState); // To update UI visuals
     }
 
-    bindEvents() {
-        // Mouse Events
-        this.view.canvas.addEventListener('mousedown', this.handleStart.bind(this));
-        this.view.canvas.addEventListener('mousemove', this.handleMove.bind(this));
-        window.addEventListener('mouseup', this.handleEnd.bind(this));
-
-        // Touch Events
-        this.view.canvas.addEventListener('touchstart', this.handleStart.bind(this), {passive: false});
-        this.view.canvas.addEventListener('touchmove', this.handleMove.bind(this), {passive: false});
-        window.addEventListener('touchend', this.handleEnd.bind(this));
-        window.addEventListener('touchcancel', this.handleEnd.bind(this));
-    }
-
-    getGridPos(evt) {
-        const rect = this.view.canvas.getBoundingClientRect();
-        let clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
-        let clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
-
-        const scaleX = this.view.canvas.width / rect.width;
-        const scaleY = this.view.canvas.height / rect.height;
-
-        const x = (clientX - rect.left) * scaleX;
-        const y = (clientY - rect.top) * scaleY;
-
-        return {
-            c: Math.floor(x / this.view.tileSize),
-            r: Math.floor(y / this.view.tileSize)
-        };
-    }
-
-    handleStart(evt) {
+    onDragStart(c, r) {
         if (this.model.currentState !== STATE.IDLE) return;
-        if (evt.type === 'touchstart') evt.preventDefault(); // Prevent scroll
-
-        const pos = this.getGridPos(evt);
-        if (pos.c >= 0 && pos.c < COLS && pos.r >= 0 && pos.r < ROWS) {
-            
-            // Check if booster is active
-            if (this.gameState && this.gameState.activeBooster) {
-                if (this.gameState.activeBooster === 'hammer') {
-                    this.model.useHammer(pos.c, pos.r, this.gameState);
-                    this.gameState.consumeBooster('hammer');
-                    this.model.currentState = STATE.MATCHING;
-                } else if (this.gameState.activeBooster === 'bomb') {
-                    this.model.useBomb(pos.c, pos.r, this.gameState);
-                    this.gameState.consumeBooster('bomb');
-                    this.model.currentState = STATE.MATCHING;
-                }
-                this.view.updateHUD(this.gameState);
-                return; // Stop normal click
+        
+        // Check if booster is active
+        if (this.gameState && this.gameState.activeBooster) {
+            if (this.gameState.activeBooster === 'hammer') {
+                this.model.useHammer(c, r, this.gameState);
+                this.gameState.consumeBooster('hammer');
+                this.model.currentState = STATE.MATCHING;
+            } else if (this.gameState.activeBooster === 'bomb') {
+                this.model.useBomb(c, r, this.gameState);
+                this.gameState.consumeBooster('bomb');
+                this.model.currentState = STATE.MATCHING;
             }
-
-            this.selectedTile = this.model.grid[pos.c][pos.r];
-            this.startX = evt.touches ? evt.touches[0].clientX : evt.clientX;
-            this.startY = evt.touches ? evt.touches[0].clientY : evt.clientY;
-            this.isDragging = true;
+            this.view.updateHUD(this.gameState);
+            
+            // Abort drag
+            this.input.isDragging = false;
+            return;
         }
+
+        this.input.selectedTile = this.model.grid[c][r];
     }
 
-    handleMove(evt) {
-        if (!this.isDragging || !this.selectedTile || this.model.currentState !== STATE.IDLE) return;
-        if (evt.type === 'touchmove') evt.preventDefault(); 
+    onSwipe(c, r, dC, dR) {
+        if (this.model.currentState !== STATE.IDLE) return;
         
-        let clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
-        let clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+        // Reset combo multiplier when a new player move starts
+        this.comboMultiplier = 1;
 
-        let dx = clientX - this.startX;
-        let dy = clientY - this.startY;
-        
-        const threshold = 30; // Drag threshold
+        let targetC = c + dC;
+        let targetR = r + dR;
 
-        if (Math.abs(dx) > threshold || Math.abs(dy) > threshold) {
-            this.isDragging = false;
+        if (targetC >= 0 && targetC < COLS && targetR >= 0 && targetR < ROWS) {
+            this.tile1 = this.model.grid[c][r];
+            this.tile2 = this.model.grid[targetC][targetR];
             
-            let dC = 0;
-            let dR = 0;
-
-            if (Math.abs(dx) > Math.abs(dy)) {
-                dC = dx > 0 ? 1 : -1;
-            } else {
-                dR = dy > 0 ? 1 : -1;
-            }
-
-            // Reset combo multiplier when a new player move starts
-            this.comboMultiplier = 1;
-
-            let targetC = this.selectedTile.c + dC;
-            let targetR = this.selectedTile.r + dR;
-
-            if (targetC >= 0 && targetC < COLS && targetR >= 0 && targetR < ROWS) {
-                this.tile1 = this.selectedTile;
-                this.tile2 = this.model.grid[targetC][targetR];
+            if (this.tile1 && this.tile2 && !this.tile1.isFrozen && !this.tile2.isFrozen) {
+                this.model.swapTiles(this.tile1, this.tile2);
+                this.model.currentState = STATE.SWAPPING;
                 
-                if (this.tile1 && this.tile2 && !this.tile1.isFrozen && !this.tile2.isFrozen) {
-                    this.model.swapTiles(this.tile1, this.tile2);
-                    this.model.currentState = STATE.SWAPPING;
-                    
-                    if (this.gameState) {
-                        if (window.audioManager) window.audioManager.play('swap');
-                        this.gameState.consumeMove();
-                        this.view.updateHUD(this.gameState);
-                    }
-                } else {
-                    // Play error sound or just ignore
-                    if (window.audioManager) window.audioManager.play('click');
+                if (this.gameState) {
+                    if (window.audioManager) window.audioManager.play('swap');
+                    this.gameState.consumeMove();
+                    this.view.updateHUD(this.gameState);
                 }
+            } else {
+                if (window.audioManager) window.audioManager.play('click');
             }
-            this.selectedTile = null;
         }
+        this.input.selectedTile = null;
     }
 
-    handleEnd(evt) {
-        this.isDragging = false;
-        this.selectedTile = null;
+    onTileClick(c, r) {
+        // Optional: Handle pure tap without drag
+    }
+
+    onDragEnd() {
+        this.input.selectedTile = null;
     }
 
     update(dt) {
+        if (this.particleSystem) {
+            this.particleSystem.update(dt / 1000);
+        }
+
         let isMoving = false;
         for (let c = 0; c < COLS; c++) {
             for (let r = 0; r < ROWS; r++) {
@@ -446,26 +398,18 @@ export class GameController {
         };
     }
 
-    gameLoop(time) {
-        if (!this.lastTime) this.lastTime = time;
-        const dt = time - this.lastTime;
-        this.lastTime = time;
-
-        this.update(dt);
-        this.view.drawGame(this.model.grid, this.selectedTile);
+    render() {
+        this.view.drawGame(this.model.grid, this.input.selectedTile);
         
         if (this.particleSystem) {
-            this.particleSystem.update(dt / 1000); // dt is expected in seconds for particles
             this.particleSystem.draw();
         }
-
-        requestAnimationFrame(this.gameLoop.bind(this));
     }
 
     start() {
         if (this.gameState) {
             this.view.updateHUD(this.gameState);
         }
-        requestAnimationFrame(this.gameLoop.bind(this));
+        this.gameLoop.start();
     }
 }

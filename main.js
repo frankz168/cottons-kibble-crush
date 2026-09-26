@@ -196,7 +196,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (level % 5 === 0) {
             gameMode = 'time';
-            timeLimit = 45 + Math.floor(level * 1.5); // 45s base + scales with level
+            timeLimit = 290 + Math.floor(level * 2); // Base 290s (Level 5 will be exactly 300s)
         } else {
             if (level >= 20) {
                 frozenCount = 3 + Math.floor((level - 20) / 2); // Scales up every 2 levels
