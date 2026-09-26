@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Cotton's Kibble Crush - Unit Tests</title>
+    <style>
+        body { font-family: monospace; background: #111; color: #fff; padding: 20px; }
+        .pass { color: #0f0; }
+        .fail { color: #f00; font-weight: bold; }
+        h1 { border-bottom: 1px solid #333; padding-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test Results</h1>
+    <div id="results"></div>
+
+    <script type="module">
+        import { GameModel } from '../src/models/GameModel.js';
+        
+        // Mock global window objects
+        window.audioManager = { play: () => {} };
+        window.particleSystem = { spawnExplosion: () => {}, spawnText: () => {}, spawnLaser: () => {} };
+
+        const resultsEl = document.getElementById('results');
+        
+        function assert(condition, message) {
+            const div = document.createElement('div');
+            if (condition) {
+                div.className = 'pass';
+                div.innerText = `✅ PASS: ${message}`;
+            } else {
+                div.className = 'fail';
+                div.innerText = `❌ FAIL: ${message}`;
+                console.error(`Assertion failed: ${message}`);
+            }
+            resultsEl.appendChild(div);
+        }
+
+        async function runTests() {
+            console.log("Running tests...");
+            
+            // Test 1: Grid Initialization
+            try {
+                const model = new GameModel(100);
+                model.initGrid();
+                assert(model.grid.length === 8 && model.grid[0].length === 8, "Grid should be 8x8");
+                assert(model.grid[0][0] !== null, "Grid cells should be populated with Tiles");
+            } catch (e) {
+                assert(false, "Grid Initialization threw an error: " + e);
+            }
+            
+            // Test 2: Basic Match-3 Detection
+            try {
+                const model = new GameModel(100);
+                model.initGrid();
+                
+                // Force a horizontal match-3
+                const type = '🦴';
+                model.grid[0][0].type = type;
+                model.grid[1][0].type = type;
+                model.grid[2][0].type = type;
+                
+                const matches = model.findMatches();
+                assert(matches.length > 0, "findMatches() should detect horizontal match-3");
+                
+                // Ensure length is at least 3
+                let foundMatch3 = false;
+                matches.forEach(group => {
+                    if (group.tiles.length >= 3) foundMatch3 = true;
+                });
+                assert(foundMatch3, "Detected match group should contain at least 3 tiles");
+            } catch (e) {
+                assert(false, "Match-3 detection threw an error: " + e);
+            }
+
+            // Test 3: Hammer Booster Logic
+            try {
+                const model = new GameModel(100);
+                model.initGrid();
+                const tile = model.grid[2][2];
+                model.useHammer(2, 2, { session: { collectedItems: {} } });
+                assert(tile.matched === true, "Hammer should set tile.matched to true");
+            } catch (e) {
+                assert(false, "Hammer Booster threw an error: " + e);
+            }
+            
+            // Test 4: Swap Logic
+            try {
+                const model = new GameModel(100);
+                model.initGrid();
+                const tile1 = model.grid[0][0];
+                const tile2 = model.grid[0][1];
+                model.swapTiles(tile1, tile2);
+                
+                assert(model.grid[0][0] === tile2, "Tiles should be swapped in the grid (1)");
+                assert(model.grid[0][1] === tile1, "Tiles should be swapped in the grid (2)");
+                assert(tile1.r === 1 && tile2.r === 0, "Tile coordinates should be updated");
+            } catch (e) {
+                assert(false, "Swap Logic threw an error: " + e);
+            }
+            
+            const div = document.createElement('div');
+            div.innerHTML = `<br><b>✨ All test suites completed!</b>`;
+            resultsEl.appendChild(div);
+        }
+
+        runTests();
+    </script>
+</body>
+</html>

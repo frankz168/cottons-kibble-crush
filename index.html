@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cotton's Kibble Crush</title>
+    <link rel="stylesheet" href="style.css?v=4">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700;900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="app" class="game-wrapper">
+        
+        <!-- 1. HOME SCREEN (MAIN MENU) -->
+        <div id="screen-home" class="game-screen" style="display: flex; flex-direction: column; align-items: center; padding-top: 40px; height: 100%; width: 100%; overflow-y: auto;">
+            <div class="dog-character home-dog" style="width: 200px; height: 200px; margin-bottom: 20px;"></div>
+            <h1 class="home-title" style="font-size: 3rem; color: #ffeb3b; margin-bottom: 40px; text-shadow: 3px 3px 0 #8b4513, -3px -3px 0 #8b4513, 3px -3px 0 #8b4513, -3px 3px 0 #8b4513, 0px 8px 15px rgba(0,0,0,0.6); text-align: center; line-height: 1.1;">Cotton's<br>Kibble Crush</h1>
+            
+            <button class="popup-btn" style="width: 200px; padding: 15px; font-size: 1.5rem; margin-bottom: 20px; background: linear-gradient(#ffeb3b, #ff9800);" onclick="gameState.switchScreen('screen-levels'); if(window.audioManager) window.audioManager.play('click');">PLAY</button>
+            <button class="popup-btn" style="width: 200px; padding: 15px; font-size: 1.2rem; margin-bottom: 20px; background: linear-gradient(#4facfe, #00f2fe);" onclick="gameState.switchScreen('screen-settings'); if(window.audioManager) window.audioManager.play('click');">OPTIONS</button>
+        </div>
+
+        <!-- 1B. LEVEL SELECT (MAP) -->
+        <div id="screen-levels" class="game-screen" style="display: none; flex-direction: column; align-items: center; padding-top: 20px; height: 100%; width: 100%; overflow-y: auto; position: relative;">
+            
+            <!-- Fixed Header Container -->
+            <div style="position: sticky; top: 0; width: 100%; text-align: center; z-index: 100; padding: 20px 0 10px; background: linear-gradient(rgba(255,248,240,0.9), transparent);">
+                <h1 class="home-title" style="font-size: 2.5rem; color: #ffeb3b; margin-bottom: 5px; text-shadow: 3px 3px 0 #8b4513, -3px -3px 0 #8b4513, 3px -3px 0 #8b4513, -3px 3px 0 #8b4513, 0px 8px 15px rgba(0,0,0,0.6); text-align: center; line-height: 1.1;">Cotton's<br>Kibble Crush</h1>
+                <h2 style="color: white; font-size: 1.5rem; text-shadow: 2px 2px 0 #9c3f1f; font-family: 'Fredoka One';">Select Level</h2>
+            </div>
+            
+            <div class="level-path" style="margin-top: 10px;">
+                <!-- Rendered dynamically by main.js -->
+            </div>
+        </div>
+
+        <!-- 2. GAME SCREEN -->
+        <div id="screen-game" class="game-screen" style="display: none; flex-direction: column; width: 100%; height: 100%;">
+            <header class="top-bar">
+                <div class="stat-box">
+                    <div class="stat-label blue-label">Level</div>
+                    <div id="level-display" class="stat-value">1</div>
+                </div>
+                <div class="stat-box score-box">
+                    <div class="stat-label blue-label">Score</div>
+                    <div id="score" class="stat-value">0</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label pink-label">Moves</div>
+                    <div id="moves-display" class="stat-value">15</div>
+                </div>
+            </header>
+
+            <div class="character-area">
+                <div class="dog-character"></div>
+                <div class="combo-banner" style="display: none;"></div>
+            </div>
+
+            <div class="main-content">
+                <main class="board-container" style="position: relative;">
+                    <canvas id="gameCanvas" width="600" height="600"></canvas>
+                    <canvas id="fxCanvas" width="600" height="600" style="position: absolute; top: 0; left: 0; pointer-events: none; z-index: 50;"></canvas>
+                </main>
+
+                <aside class="collect-panel" id="collect-panel">
+                    <div class="collect-title">Collect</div>
+                    <!-- Dynamically populated by GameView -->
+                </aside>
+            </div>
+
+            <div class="powerups-container">
+                <div id="btn-hammer" class="powerup-btn hammer" onclick="window.toggleBooster('hammer')">
+                    <span class="powerup-icon">🔨</span>
+                    <span id="badge-hammer" class="powerup-badge">2</span>
+                </div>
+                <div id="btn-bomb" class="powerup-btn bomb" onclick="window.toggleBooster('bomb')">
+                    <span class="powerup-icon">💣</span>
+                    <span id="badge-bomb" class="powerup-badge">5</span>
+                </div>
+                <div id="btn-shuffle" class="powerup-btn shuffle" onclick="window.toggleBooster('shuffle')">
+                    <span class="powerup-icon">🔄</span>
+                    <span id="badge-shuffle" class="powerup-badge">1</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. SHOP SCREEN -->
+        <div id="screen-shop" class="game-screen" style="display: none; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: 40px; height: 100%; width: 100%;">
+            <div style="display: flex; align-items: center; justify-content: space-between; width: 90%; max-width: 400px; margin-bottom: 20px;">
+                <h2 style="color: white; font-size: 2.5rem; text-shadow: 2px 2px 0 #9c3f1f; font-family: 'Fredoka One'; margin: 0;">Shop</h2>
+                <div style="background: rgba(0,0,0,0.5); padding: 5px 15px; border-radius: 20px; color: gold; font-family: 'Fredoka One'; font-size: 1.5rem; display: flex; align-items: center; gap: 5px; border: 2px solid rgba(255,215,0,0.5);">
+                    💰 <span id="shop-coins">0</span>
+                </div>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 15px; width: 90%; max-width: 400px; flex: 1; overflow-y: auto; padding-bottom: 100px;">
+                <!-- Hammer Item -->
+                <div style="background: white; border-radius: 15px; padding: 15px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 0 #ccc;">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div style="font-size: 2.5rem; background: #eee; padding: 10px; border-radius: 15px;">🔨</div>
+                        <div>
+                            <div style="font-family: 'Fredoka One'; font-size: 1.2rem; color: #333;">Hammer</div>
+                            <div style="color: #666; font-size: 0.9rem;">Breaks 1 Tile</div>
+                            <div style="font-weight: bold; color: #8e583c; font-size: 0.9rem;">Owned: <span id="shop-owned-hammer">0</span></div>
+                        </div>
+                    </div>
+                    <button onclick="window.buyBooster('hammer', 100)" style="background: #5ef54c; color: white; border: none; padding: 10px 15px; border-radius: 10px; font-family: 'Fredoka One'; font-size: 1.1rem; cursor: pointer; box-shadow: 0 4px 0 #45b338; display: flex; align-items: center; gap: 5px; transition: transform 0.1s;">
+                        100 💰
+                    </button>
+                </div>
+                
+                <!-- Bomb Item -->
+                <div style="background: white; border-radius: 15px; padding: 15px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 0 #ccc;">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div style="font-size: 2.5rem; background: #eee; padding: 10px; border-radius: 15px;">💣</div>
+                        <div>
+                            <div style="font-family: 'Fredoka One'; font-size: 1.2rem; color: #333;">Bomb</div>
+                            <div style="color: #666; font-size: 0.9rem;">3x3 Explosion</div>
+                            <div style="font-weight: bold; color: #8e583c; font-size: 0.9rem;">Owned: <span id="shop-owned-bomb">0</span></div>
+                        </div>
+                    </div>
+                    <button onclick="window.buyBooster('bomb', 250)" style="background: #5ef54c; color: white; border: none; padding: 10px 15px; border-radius: 10px; font-family: 'Fredoka One'; font-size: 1.1rem; cursor: pointer; box-shadow: 0 4px 0 #45b338; display: flex; align-items: center; gap: 5px; transition: transform 0.1s;">
+                        250 💰
+                    </button>
+                </div>
+                
+                <!-- Shuffle Item -->
+                <div style="background: white; border-radius: 15px; padding: 15px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 0 #ccc;">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div style="font-size: 2.5rem; background: #eee; padding: 10px; border-radius: 15px;">🔀</div>
+                        <div>
+                            <div style="font-family: 'Fredoka One'; font-size: 1.2rem; color: #333;">Shuffle</div>
+                            <div style="color: #666; font-size: 0.9rem;">Mixes Board</div>
+                            <div style="font-weight: bold; color: #8e583c; font-size: 0.9rem;">Owned: <span id="shop-owned-shuffle">0</span></div>
+                        </div>
+                    </div>
+                    <button onclick="window.buyBooster('shuffle', 150)" style="background: #5ef54c; color: white; border: none; padding: 10px 15px; border-radius: 10px; font-family: 'Fredoka One'; font-size: 1.1rem; cursor: pointer; box-shadow: 0 4px 0 #45b338; display: flex; align-items: center; gap: 5px; transition: transform 0.1s;">
+                        150 💰
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. LEADERBOARD SCREEN -->
+        <div id="screen-leaderboard" class="game-screen" style="display: none; flex-direction: column; align-items: center; padding-top: 40px; height: 100%; width: 100%;">
+            <h2 style="color: white; font-size: 2.5rem; text-shadow: 2px 2px 0 #9c3f1f; font-family: 'Fredoka One';">Top Kibblers</h2>
+            
+            <div class="leaderboard-container" id="leaderboard-list">
+                <!-- Rendered dynamically by main.js -->
+            </div>
+        </div>
+
+        <!-- 5. SETTINGS SCREEN -->
+        <div id="screen-settings" class="game-screen" style="display: none; position: relative; width: 100%; height: 100%; align-items: center; justify-content: center; background: rgba(0,0,0,0.4); backdrop-filter: blur(5px);">
+            <div class="settings-card" style="position: relative; width: 90%; max-width: 400px; background: #fff8f0; border-radius: 25px; border: 5px solid #8e583c; box-shadow: 0 10px 0 #6e4029, 0 20px 25px rgba(0,0,0,0.5); padding: 25px; display: flex; flex-direction: column; gap: 20px;">
+                <button onclick="gameState.switchScreen('screen-home'); if(window.audioManager) window.audioManager.play('click');" style="position: absolute; top: -15px; right: -15px; width: 45px; height: 45px; border-radius: 50%; background: #ff4757; color: white; font-weight: bold; font-size: 1.5rem; border: 3px solid white; box-shadow: 0 4px 0 #c0392b; cursor: pointer; display: flex; justify-content: center; align-items: center; z-index: 10;">X</button>
+                
+                <h2 style="color: #ffeb3b; font-size: 2.2rem; text-align: center; text-shadow: 2px 2px 0 #8b4513, -2px -2px 0 #8b4513, 2px -2px 0 #8b4513, -2px 2px 0 #8b4513; font-family: 'Fredoka One'; margin-bottom: 10px; margin-top: 0;" data-i18n="settings_title">SETTINGS</h2>
+                
+                <!-- Audio Controls -->
+                <div class="settings-row" style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.05); padding: 15px; border-radius: 15px;">
+                    <span style="font-family: 'Fredoka One'; font-size: 1.2rem; color: #555;">BGM (Music)</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="toggle-bgm" checked onchange="window.toggleSetting('bgm', this.checked)">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+                
+                <div class="settings-row" style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.05); padding: 15px; border-radius: 15px;">
+                    <span style="font-family: 'Fredoka One'; font-size: 1.2rem; color: #555;">SFX (Sound)</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="toggle-sfx" checked onchange="window.toggleSetting('sfx', this.checked)">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+                
+                <!-- Language Selector -->
+                <div class="settings-row" style="display: flex; flex-direction: column; gap: 10px; background: rgba(0,0,0,0.05); padding: 15px; border-radius: 15px;">
+                    <span style="font-family: 'Fredoka One'; font-size: 1.2rem; color: #555;" data-i18n="language">Language / Bahasa</span>
+                    <div style="display: flex; gap: 10px;">
+                        <button id="lang-en" onclick="window.setLanguage('en')" style="flex: 1; padding: 10px; border-radius: 10px; border: 2px solid #8e583c; font-family: 'Fredoka One'; cursor: pointer; background: #5ef54c; color: white;">English</button>
+                        <button id="lang-id" onclick="window.setLanguage('id')" style="flex: 1; padding: 10px; border-radius: 10px; border: 2px solid #8e583c; font-family: 'Fredoka One'; cursor: pointer; background: white; color: #555;">Indonesia</button>
+                    </div>
+                </div>
+                
+                <!-- Danger & Info -->
+                <button onclick="window.showCredits()" style="padding: 12px; border-radius: 15px; border: none; background: #4facfe; color: white; font-family: 'Fredoka One'; font-size: 1.1rem; box-shadow: 0 4px 0 #00f2fe; cursor: pointer; margin-top: 10px;" data-i18n="credits_btn">Credits</button>
+                
+                <button onclick="window.resetProgress()" style="padding: 12px; border-radius: 15px; border: none; background: #ff4757; color: white; font-family: 'Fredoka One'; font-size: 1.1rem; box-shadow: 0 4px 0 #c0392b; cursor: pointer;" data-i18n="reset_btn">Reset Progress</button>
+                
+            </div>
+        </div>
+        
+        <!-- 6. GAME OVER OVERLAY -->
+        <div id="game-over-overlay" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 200; flex-direction: column; align-items: center; justify-content: center;">
+            <div class="popup-box" style="animation: bounceIn 0.5s;">
+                <h2 id="game-over-title">Game Over!</h2>
+                <p id="game-over-msg">Out of moves!</p>
+                <div id="game-over-reward" style="display: none; background: rgba(0,0,0,0.05); padding: 15px; border-radius: 15px; margin: 15px 0;">
+                    <div style="font-size: 1.2rem; color: #555; margin-bottom: 5px;">Level Reward</div>
+                    <div style="font-size: 2rem; font-family: 'Fredoka One'; color: gold; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                        💰 <span id="game-over-coins">0</span>
+                    </div>
+                </div>
+                <button class="popup-btn" onclick="window.closeGameOver()">OK</button>
+            </div>
+        </div>
+        
+        <!-- 7. DAILY REWARD OVERLAY -->
+        <div id="daily-reward-overlay" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 300; flex-direction: column; align-items: center; justify-content: center;">
+            <div class="popup-box" style="animation: bounceIn 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55); border: 5px solid #ffeb3b; box-shadow: 0 0 30px rgba(255, 235, 59, 0.6), 0 10px 0 #d4a017;">
+                <h2 style="color: #ffeb3b; font-size: 2.2rem; text-shadow: 2px 2px 0 #9c3f1f; margin-bottom: 5px;">Daily Gift!</h2>
+                <div style="font-size: 5rem; margin: 10px 0; animation: float 2s infinite ease-in-out;">🎁</div>
+                <p style="font-family: 'Fredoka One'; font-size: 1.2rem; color: #555;">You received:</p>
+                <div style="display: flex; gap: 20px; justify-content: center; margin-bottom: 20px;">
+                    <div style="background: rgba(0,0,0,0.05); padding: 10px 20px; border-radius: 15px;">
+                        <span style="font-size: 1.5rem;">💰</span><br>
+                        <strong>100 Coins</strong>
+                    </div>
+                    <div style="background: rgba(0,0,0,0.05); padding: 10px 20px; border-radius: 15px;">
+                        <span style="font-size: 1.5rem;">🔨</span><br>
+                        <strong>1 Hammer</strong>
+                    </div>
+                </div>
+                <button class="popup-btn" onclick="window.claimDailyReward()" style="background: #5ef54c; box-shadow: 0 5px 0 #3a9b2d; font-size: 1.3rem;">CLAIM!</button>
+            </div>
+        </div>
+        
+        <!-- 8. CUSTOM ALERT OVERLAY -->
+        <div id="custom-alert-overlay" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 999; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(2px);">
+            <div class="popup-box" style="animation: bounceIn 0.3s ease-out; min-width: 250px; text-align: center;">
+                <h2 id="custom-alert-title" style="color: #8e583c; font-size: 1.8rem; text-shadow: 1px 1px 0 #fff; margin-bottom: 10px;">Notice</h2>
+                <p id="custom-alert-msg" style="font-family: 'Fredoka One'; font-size: 1.1rem; color: #555; margin-bottom: 20px;">Message goes here</p>
+                <button class="popup-btn" onclick="document.getElementById('custom-alert-overlay').style.display='none'; if(window.audioManager) window.audioManager.play('click');" style="background: #4facfe; box-shadow: 0 4px 0 #00f2fe;">OK</button>
+            </div>
+        </div>
+        
+        <!-- 9. CUSTOM CONFIRM OVERLAY -->
+        <div id="custom-confirm-overlay" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 999; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(2px);">
+            <div class="popup-box" style="animation: bounceIn 0.3s ease-out; min-width: 250px; text-align: center;">
+                <h2 id="custom-confirm-title" style="color: #e74c3c; font-size: 1.8rem; text-shadow: 1px 1px 0 #fff; margin-bottom: 10px;">Warning</h2>
+                <p id="custom-confirm-msg" style="font-family: 'Fredoka One'; font-size: 1.1rem; color: #555; margin-bottom: 20px;">Are you sure?</p>
+                <div style="display: flex; gap: 15px; justify-content: center;">
+                    <button class="popup-btn" id="custom-confirm-no" style="background: #95a5a6; box-shadow: 0 4px 0 #7f8c8d; font-size: 1.1rem; padding: 10px 20px;">No</button>
+                    <button class="popup-btn" id="custom-confirm-yes" style="background: #e74c3c; box-shadow: 0 4px 0 #c0392b; font-size: 1.1rem; padding: 10px 20px;">Yes</button>
+                </div>
+            </div>
+        </div>
+        
+        <nav class="bottom-nav">
+            <div class="nav-item" onclick="gameState.switchScreen('screen-home')" style="cursor:pointer">
+                <div class="nav-icon">🏠</div>
+                <span>Home</span>
+            </div>
+            <div class="nav-item" onclick="gameState.switchScreen('screen-shop')" style="cursor:pointer">
+                <div class="nav-icon">🏪</div>
+                <span>Shop</span>
+            </div>
+            <div class="nav-item play-btn" onclick="if(window.playHighestLevel) window.playHighestLevel();" style="cursor:pointer; transform: scale(1.3); background: #5ef54c; border-radius: 50%; box-shadow: 0 4px 10px rgba(0,0,0,0.3); border: 2px solid white;">
+                <div class="nav-icon" style="text-shadow: none;">▶️</div>
+            </div>
+            <div class="nav-item" onclick="gameState.switchScreen('screen-leaderboard')" style="cursor:pointer">
+                <div class="nav-icon">🏆</div>
+                <span>Rank</span>
+            </div>
+            <div class="nav-item" onclick="gameState.switchScreen('screen-settings')" style="cursor:pointer">
+                <div class="nav-icon">⚙️</div>
+                <span>Settings</span>
+            </div>
+        </nav>
+    </div>
+    
+    <!-- Audio Toggle (Mute Button) -->
+    <div id="mute-btn" class="mute-btn" onclick="toggleMute()" style="position: absolute; top: 15px; left: 15px; font-size: 1.8rem; cursor: pointer; z-index: 100; text-shadow: 2px 2px 0px rgba(0,0,0,0.2);">🔊</div>
+
+    <script type="module" src="main.js"></script>
+</body>
+</html>
