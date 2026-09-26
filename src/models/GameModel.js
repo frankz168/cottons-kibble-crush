@@ -10,7 +10,7 @@ export class GameModel {
         this.initGrid();
     }
 
-    initGrid(availableTypes = TYPES, frozenCount = 0) {
+    initGrid(availableTypes = TYPES, frozenCount = 0, catCount = 0) {
         this.availableTypes = availableTypes;
         this.grid = Array.from({ length: COLS }, () => new Array(ROWS).fill(null));
         let allTiles = [];
@@ -29,11 +29,19 @@ export class GameModel {
             }
         }
         
-        // Randomly freeze tiles
+        allTiles.sort(() => Math.random() - 0.5);
+        
+        // Spawn cats
+        for (let i = 0; i < Math.min(catCount, allTiles.length); i++) {
+            allTiles[i].type = '🐈';
+            allTiles[i].isCat = true;
+        }
+        
+        // Randomly freeze tiles (excluding cats)
         if (frozenCount > 0) {
-            allTiles.sort(() => Math.random() - 0.5);
-            for (let i = 0; i < Math.min(frozenCount, allTiles.length); i++) {
-                allTiles[i].isFrozen = true;
+            let freezable = allTiles.filter(t => !t.isCat);
+            for (let i = 0; i < Math.min(frozenCount, freezable.length); i++) {
+                freezable[i].isFrozen = true;
             }
         }
     }
@@ -167,10 +175,29 @@ export class GameModel {
             neighbors.forEach(n => {
                 if (n.c >= 0 && n.c < COLS && n.r >= 0 && n.r < ROWS) {
                     let neighbor = this.grid[n.c][n.r];
-                    if (neighbor && neighbor.isFrozen) {
-                        neighbor.isFrozen = false;
-                        if (window.audioManager) window.audioManager.play('match'); // small feedback
-                        if (window.particleSystem) window.particleSystem.spawnExplosion(neighbor.pixelX + this.tileSize/2, neighbor.pixelY + this.tileSize/2, '❄️');
+                    if (neighbor) {
+                        if (neighbor.isFrozen) {
+                            neighbor.isFrozen = false;
+                            if (window.audioManager) window.audioManager.play('match'); // small feedback
+                            if (window.particleSystem) window.particleSystem.spawnExplosion(neighbor.pixelX + this.tileSize/2, neighbor.pixelY + this.tileSize/2, '❄️');
+                        }
+                        if (neighbor.isCat && !neighbor.matched) {
+                            neighbor.matched = true;
+                            toDestroyQueue.push(neighbor); // Kill the cat!
+                            
+                            // Give +50 coins
+                            if (window.repository) {
+                                window.repository.addCoins(50);
+                            }
+                            
+                            // Extra score
+                            scoreGained += 1000;
+                            
+                            if (window.particleSystem) {
+                                window.particleSystem.spawnExplosion(neighbor.pixelX + this.tileSize/2, neighbor.pixelY + this.tileSize/2, '🎉', 20);
+                                window.particleSystem.spawnText(neighbor.pixelX + this.tileSize/2, neighbor.pixelY + this.tileSize/2, 'CAUGHT!');
+                            }
+                        }
                     }
                 }
             });
@@ -343,5 +370,60 @@ export class GameModel {
             }
         }
         if (window.audioManager) window.audioManager.play('swap');
+    }
+
+    moveCats() {
+        let cats = [];
+        for (let c = 0; c < COLS; c++) {
+            for (let r = 0; r < ROWS; r++) {
+                if (this.grid[c][r] && this.grid[c][r].isCat) {
+                    cats.push(this.grid[c][r]);
+                }
+            }
+        }
+        
+        cats.forEach(cat => {
+            if (cat.matched) return;
+            let neighbors = [
+                {c: cat.c - 1, r: cat.r},
+                {c: cat.c + 1, r: cat.r},
+                {c: cat.c, r: cat.r - 1},
+                {c: cat.c, r: cat.r + 1}
+            ];
+            let validNeighbors = neighbors.filter(n => n.c >= 0 && n.c < COLS && n.r >= 0 && n.r < ROWS);
+            let freeNeighbors = validNeighbors.map(n => this.grid[n.c][n.r]).filter(t => t && !t.isCat && !t.isFrozen);
+            
+            if (freeNeighbors.length > 0) {
+                let target = freeNeighbors[Math.floor(Math.random() * freeNeighbors.length)];
+                
+                let currentMoves = cat.moveCount || 0;
+                
+                // Directly swap properties to avoid animation queue conflict if we are during match
+                let tempType = cat.type;
+                let tempCat = cat.isCat;
+                
+                cat.type = target.type;
+                cat.isCat = target.isCat;
+                cat.moveCount = 0; // reset old tile
+                
+                target.type = tempType;
+                target.isCat = tempCat;
+                target.moveCount = currentMoves + 1;
+                
+                if (target.moveCount >= 3) {
+                    target.moveCount = 0;
+                    if (window.repository) {
+                        let coins = window.repository.getCoins();
+                        if (coins >= 10) {
+                            window.repository.spendCoins(10);
+                            if (window.particleSystem) {
+                                window.particleSystem.spawnText(target.pixelX + this.tileSize/2, target.pixelY + this.tileSize/2, '-10 💰', '#ff0000');
+                            }
+                            if (window.renderShop) window.renderShop(); // Update shop UI if open
+                        }
+                    }
+                }
+            }
+        });
     }
 }

@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const view = new GameView('gameCanvas', 'score');
     const model = new GameModel(view.tileSize);
     const repository = new LocalScoreRepository();
+    window.repository = repository;
     const controller = new GameController(model, view, repository);
 
     // Provide game state to controller so it can interact with scores and objectives
@@ -71,7 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
             fillerIdx++;
         }
         
-        controller.model.initGrid(availableTypes, config.frozenCount || 0);
+        controller.model.initGrid(availableTypes, config.frozenCount || 0, config.catCount || 0);
         controller.view.updateHUD(gameState);
         
         // Randomly pick a game BGM
@@ -94,6 +95,20 @@ document.addEventListener('DOMContentLoaded', () => {
         grid.style.width = '100%';
         grid.style.display = 'block'; // override flex
         grid.style.flexShrink = '0';
+        
+        // Zone 1: Grass (Level 1-20), Zone 2: Snow (Level 21-40), Zone 3: Volcano/Space (Level 41-50)
+        let zone1Height = 20 * levelHeight + 100;
+        let zone2Height = 40 * levelHeight + 100;
+        grid.style.background = `linear-gradient(to top, 
+            rgba(101, 193, 73, 0.8) 0px, 
+            rgba(101, 193, 73, 0.8) ${zone1Height}px, 
+            rgba(174, 226, 255, 0.9) ${zone1Height}px, 
+            rgba(174, 226, 255, 0.9) ${zone2Height}px, 
+            rgba(156, 63, 31, 0.9) ${zone2Height}px, 
+            rgba(156, 63, 31, 0.9) 100%
+        )`;
+        grid.style.borderRadius = '20px';
+        grid.style.boxShadow = 'inset 0 0 20px rgba(0,0,0,0.2)';
         
         let html = '';
         let latestX = 0;
@@ -175,12 +190,23 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         let frozenCount = 0;
-        if (level >= 20) {
-            frozenCount = 3 + Math.floor((level - 20) / 2); // Scales up every 2 levels
+        let catCount = 0;
+        let gameMode = 'moves';
+        let timeLimit = 0;
+        
+        if (level % 5 === 0) {
+            gameMode = 'time';
+            timeLimit = 45 + Math.floor(level * 1.5); // 45s base + scales with level
+        } else {
+            if (level >= 20) {
+                frozenCount = 3 + Math.floor((level - 20) / 2); // Scales up every 2 levels
+                if (level >= 22) catCount = 1;
+                if (level >= 35) catCount = 2;
+            }
         }
         
         // Ensure valid string representation for inline HTML
-        return `{targetScore: ${targetScore}, maxMoves: ${moves}, objectives: ${JSON.stringify(objectives).replace(/"/g, "'")}, frozenCount: ${frozenCount}}`;
+        return `{targetScore: ${targetScore}, maxMoves: ${moves}, objectives: ${JSON.stringify(objectives).replace(/"/g, "'")}, frozenCount: ${frozenCount}, gameMode: '${gameMode}', timeLimit: ${timeLimit}, catCount: ${catCount}}`;
     };
     
     window.playHighestLevel = function() {

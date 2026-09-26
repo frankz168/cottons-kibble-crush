@@ -164,6 +164,15 @@ export class GameController {
             }
         }
 
+        if (this.gameState && this.gameState.currentScreen === 'screen-game' && this.gameState.levelData.gameMode === 'time' && this.model.currentState !== STATE.WIN_ANIMATION && this.gameState.session.timeRemaining > 0) {
+            this.gameState.session.timeRemaining -= (dt / 1000);
+            this.view.updateHUD(this.gameState);
+            if (this.gameState.session.timeRemaining <= 0) {
+                this.gameState.session.timeRemaining = 0;
+                this.checkGameOver();
+            }
+        }
+
         if (!isMoving) {
             if (this.model.currentState === STATE.SWAPPING) {
                 let isRainbowSwap = false;
@@ -224,20 +233,33 @@ export class GameController {
                     }
                     this.checkHighScore();
                 } else {
-                    this.model.currentState = STATE.IDLE;
+                    this.model.moveCats();
+                    let postCatMatches = this.model.findMatches();
+                    if (postCatMatches.length > 0) {
+                        this.model.removeMatches(postCatMatches, this.gameState, this.comboMultiplier);
+                        this.model.currentState = STATE.MATCHING;
+                        if (this.gameState) this.view.updateHUD(this.gameState);
+                    } else {
+                        this.model.currentState = STATE.IDLE;
+                    }
                 }
             } else if (this.model.currentState === STATE.IDLE) {
                 if (this.gameState && this.gameState.currentScreen === 'screen-game') {
                     if (this.isWinConditionMet()) {
-                        if (this.gameState.session.movesLeft > 0) {
+                        let bonusCount = 0;
+                        if (this.gameState.levelData.gameMode === 'time') {
+                            bonusCount = Math.floor(this.gameState.session.timeRemaining);
+                            this.gameState.session.timeRemaining = 0;
+                        } else {
+                            bonusCount = this.gameState.session.movesLeft;
+                            this.gameState.session.movesLeft = 0;
+                        }
+                        
+                        if (bonusCount > 0) {
                             this.model.currentState = STATE.WIN_ANIMATION;
                             
-                            // 1. Play grand fireworks for all remaining moves AT ONCE
-                            let moves = this.gameState.session.movesLeft;
-                            this.gameState.session.movesLeft = 0;
-                            
                             let targets = [];
-                            for (let i = 0; i < moves; i++) {
+                            for (let i = 0; i < bonusCount; i++) {
                                 let rC = Math.floor(Math.random() * COLS);
                                 let rR = Math.floor(Math.random() * ROWS);
                                 if (this.model.grid[rC][rR]) {
@@ -247,7 +269,7 @@ export class GameController {
                             
                             if (targets.length > 0) {
                                 // Add big bonus score
-                                this.gameState.session.currentScore += moves * 1000;
+                                this.gameState.session.currentScore += bonusCount * 1000;
                                 
                                 // Spawn laser and destroy rows/cols
                                 targets.forEach(t => {
@@ -363,15 +385,25 @@ export class GameController {
 
         const isWin = this.isWinConditionMet();
         const title = isWin ? "Level Complete!" : "Game Over!";
-        const msg = isWin ? "Awesome! You completed the level!" : "Out of moves!";
+        
+        let msg = "Out of moves!";
+        if (this.gameState.levelData.gameMode === 'time') {
+            msg = isWin ? "Awesome! You completed the level!" : "Time's up!";
+        } else {
+            msg = isWin ? "Awesome! You completed the level!" : "Out of moves!";
+        }
         
         let coinReward = 0;
         const rewardEl = document.getElementById('game-over-reward');
         const coinsEl = document.getElementById('game-over-coins');
 
         if (isWin) {
-            // Reward coins based on remaining moves + base reward
-            coinReward = 50 + (this.gameState.session.movesLeft * 10);
+            // Reward coins based on remaining moves or time + base reward
+            let bonusAmount = this.gameState.levelData.gameMode === 'time' ? 
+                              Math.floor(this.gameState.session.timeRemaining) : 
+                              this.gameState.session.movesLeft;
+                              
+            coinReward = 50 + (bonusAmount * 10);
             this.repository.addCoins(coinReward);
             
             // Unlock next level

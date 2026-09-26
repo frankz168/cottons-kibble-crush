@@ -87,6 +87,7 @@ export class GameState {
         // Reset session to start
         this.session.currentScore = 0;
         this.session.movesLeft = this.levelData.maxMoves;
+        this.session.timeRemaining = this.levelData.timeLimit || 0;
         
         // Dynamically initialize collected items based on objectives
         this.session.collectedItems = {};
@@ -102,6 +103,9 @@ export class GameState {
     }
 
     consumeMove() {
+        if (this.levelData && this.levelData.gameMode === 'time') {
+            return; // don't consume moves in time mode
+        }
         if (this.session.movesLeft > 0) {
             this.session.movesLeft -= 1;
         }

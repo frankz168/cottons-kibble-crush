@@ -114,7 +114,25 @@ export class GameView {
     updateHUD(gameState) {
         this.scoreEl.innerText = gameState.session.currentScore.toLocaleString();
         this.levelEl.innerText = gameState.levelData.currentLevel;
-        this.movesEl.innerText = gameState.session.movesLeft;
+        
+        const movesLabel = document.getElementById('moves-label');
+        if (gameState.levelData.gameMode === 'time') {
+            if (movesLabel) movesLabel.innerText = "Time ⏳";
+            const timeVal = Math.ceil(gameState.session.timeRemaining);
+            this.movesEl.innerText = timeVal;
+            if (timeVal <= 10) {
+                this.movesEl.style.color = 'red';
+                this.movesEl.style.animation = 'shake 0.5s infinite';
+            } else {
+                this.movesEl.style.color = '';
+                this.movesEl.style.animation = '';
+            }
+        } else {
+            if (movesLabel) movesLabel.innerText = "Moves 👟";
+            this.movesEl.innerText = gameState.session.movesLeft;
+            this.movesEl.style.color = '';
+            this.movesEl.style.animation = '';
+        }
         
         // Dynamically render objectives
         if (this.collectPanelEl) {
