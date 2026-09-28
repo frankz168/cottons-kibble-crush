@@ -74,7 +74,31 @@ export class CanvasRenderer {
         this.ctx.shadowBlur = 5;
         this.ctx.shadowOffsetY = 3;
         
-        this.ctx.fillText(tile.type, 0, 4); 
+        // Draw the custom images or fallback to emoji
+        const size = this.tileSize * 0.9;
+        const offset = -size / 2;
+        
+        if (tile.type === '🎾' && window.iconImages && window.iconImages.tennis.complete) {
+            this.ctx.drawImage(window.iconImages.tennis, offset, offset + 4, size, size);
+        } else if (tile.type === '🥩' && window.iconImages && window.iconImages.meat.complete) {
+            this.ctx.drawImage(window.iconImages.meat, offset, offset + 4, size, size);
+        } else if (tile.type === '🦴' && window.iconImages && window.iconImages.bone.complete) {
+            this.ctx.drawImage(window.iconImages.bone, offset, offset + 4, size, size);
+        } else if (tile.type === '🐾' && window.iconImages && window.iconImages.paw.complete) {
+            this.ctx.drawImage(window.iconImages.paw, offset, offset + 4, size, size);
+        } else if (tile.type === '🍗' && window.iconImages && window.iconImages.drumstick.complete) {
+            this.ctx.drawImage(window.iconImages.drumstick, offset, offset + 4, size, size);
+        } else if (tile.type === '🧀' && window.iconImages && window.iconImages.cheese.complete) {
+            this.ctx.drawImage(window.iconImages.cheese, offset, offset + 4, size, size);
+        } else if (tile.type === '👟' && window.iconImages && window.iconImages.shoe.complete) {
+            this.ctx.drawImage(window.iconImages.shoe, offset, offset + 4, size, size);
+        } else if (tile.type === '🧶' && window.iconImages && window.iconImages.yarn.complete) {
+            this.ctx.drawImage(window.iconImages.yarn, offset, offset + 4, size, size);
+        } else if (tile.type === '🍪' && window.iconImages && window.iconImages.cookie.complete) {
+            this.ctx.drawImage(window.iconImages.cookie, offset, offset + 4, size, size);
+        } else {
+            this.ctx.fillText(tile.type, 0, 4); 
+        }
         
         // Draw ice block overlay if frozen
         if (tile.isFrozen) {

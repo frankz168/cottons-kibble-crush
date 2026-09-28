@@ -1,0 +1,22 @@
+{
+  "name": "Cotton's Kibble Crush",
+  "short_name": "Kibble Crush",
+  "description": "A fun and beautiful match-3 game!",
+  "start_url": "./index.html",
+  "display": "fullscreen",
+  "background_color": "#fdf3e6",
+  "theme_color": "#ff758c",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "assets/images/icon_paw.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/images/icon_paw.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

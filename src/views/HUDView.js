@@ -44,7 +44,18 @@ export class HUDView {
         
         // Dynamically render objectives
         if (this.collectPanelEl) {
-            let html = '<div class="collect-title">Collect</div>';
+            let html = '';
+            const iconMap = {
+                '🎾': 'tennis',
+                '🥩': 'meat',
+                '🦴': 'bone',
+                '🐾': 'paw',
+                '🍗': 'drumstick',
+                '🧀': 'cheese',
+                '👟': 'shoe',
+                '🧶': 'yarn',
+                '🍪': 'cookie'
+            };
             for (let type in gameState.levelData.objectives) {
                 const target = gameState.levelData.objectives[type];
                 const collected = gameState.session.collectedItems[type] || 0;
@@ -52,10 +63,16 @@ export class HUDView {
                 if (`${collected}/${target}`.length > 5) {
                     textClass += ' small-text';
                 }
+                
+                let iconHtml = `<div class="collect-icon-horiz">${type}</div>`;
+                if (iconMap[type]) {
+                    iconHtml = `<div class="collect-icon-horiz"><img src="assets/images/icon_${iconMap[type]}.png" style="width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.3));"></div>`;
+                }
+
                 html += `
-                    <div class="collect-item">
-                        <div class="collect-icon">${type}</div>
-                        <div class="${textClass}">${collected}/${target}</div>
+                    <div class="collect-item-horiz">
+                        ${iconHtml}
+                        <div class="${textClass}" style="color: #5a3a29; font-size: 1.1rem; font-weight: 900; margin-left: -2px;">${collected}/${target}</div>
                     </div>
                 `;
             }

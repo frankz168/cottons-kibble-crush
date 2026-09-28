@@ -3,15 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Cotton's Kibble Crush</title>
-    <link rel="stylesheet" href="style.css?v=4">
+    <link rel="stylesheet" href="style.css?v=38">
     <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700;900&display=swap" rel="stylesheet">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#ff758c">
 </head>
 <body>
     <div id="app" class="game-wrapper">
         
         <!-- 1. HOME SCREEN (MAIN MENU) -->
-        <div id="screen-home" class="game-screen" style="display: flex; flex-direction: column; align-items: center; padding-top: 40px; height: 100%; width: 100%; overflow-y: auto;">
+        <div id="screen-home" class="game-screen" style="display: flex; flex-direction: column; align-items: center; padding-top: 40px; flex: 1; min-height: 0; width: 100%; overflow-y: auto;">
             <div class="dog-character home-dog" style="width: 200px; height: 200px; margin-bottom: 20px;"></div>
             <h1 class="home-title" style="font-size: 3rem; color: #ffeb3b; margin-bottom: 40px; text-shadow: 3px 3px 0 #8b4513, -3px -3px 0 #8b4513, 3px -3px 0 #8b4513, -3px 3px 0 #8b4513, 0px 8px 15px rgba(0,0,0,0.6); text-align: center; line-height: 1.1;">Cotton's<br>Kibble Crush</h1>
             
@@ -20,7 +25,7 @@
         </div>
 
         <!-- 1B. LEVEL SELECT (MAP) -->
-        <div id="screen-levels" class="game-screen" style="display: none; flex-direction: column; align-items: center; padding-top: 20px; height: 100%; width: 100%; overflow-y: auto; position: relative;">
+        <div id="screen-levels" class="game-screen" style="display: none; flex-direction: column; align-items: center; padding-top: 20px; flex: 1; min-height: 0; width: 100%; overflow-y: auto; position: relative;">
             
             <!-- Fixed Header Container -->
             <div style="position: sticky; top: 0; width: 100%; text-align: center; z-index: 100; padding: 20px 0 10px; background: linear-gradient(rgba(255,248,240,0.9), transparent);">
@@ -34,57 +39,95 @@
         </div>
 
         <!-- 2. GAME SCREEN -->
-        <div id="screen-game" class="game-screen" style="display: none; flex-direction: column; width: 100%; height: 100%;">
-            <header class="top-bar">
-                <div class="stat-box">
-                    <div class="stat-label blue-label">Level</div>
-                    <div id="level-display" class="stat-value">1</div>
+        <div id="screen-game" class="game-screen" style="display: none; flex-direction: column; width: 100%; height: 100%; flex: 1; min-height: 0; align-items: center; padding-top: 15px; padding-bottom: 0; background: transparent;">
+            
+            <header class="top-bar-new" style="display: flex; justify-content: center; align-items: flex-start; width: 100%; gap: 15px; margin-top: 15px; z-index: 10;">
+                
+                <!-- Left: Level Box -->
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; background: #fffdf5; border-radius: 15px; padding: 8px 15px; min-width: 90px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border: 1px solid rgba(224, 212, 195, 0.5);">
+                    <div style="font-size: 0.9rem; color: #5a3a29; font-weight: bold; font-family: 'Fredoka One', cursive;">Level</div>
+                    <div id="level-display" style="font-size: 1.1rem; color: #fff; background: #c8905e; border-radius: 5px 5px 15px 15px; width: 30px; height: 35px; display: flex; justify-content: center; align-items: center; margin-top: 4px; border: 2px solid #b3733e; box-shadow: 0 2px 0 #9c5c2a; font-weight: bold; padding-bottom: 2px;">3</div>
                 </div>
-                <div class="stat-box score-box">
-                    <div class="stat-label blue-label">Score</div>
-                    <div id="score" class="stat-value">0</div>
+                
+                <!-- Center: Dog Avatar -->
+                <div class="character-area" style="display: flex; flex-direction: column; align-items: center; margin: 0; z-index: 11; position: relative;">
+                    <div class="dog-character" style="width: 100px; height: 100px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); border: 4px solid white; background-color: white; border-radius: 50%;"></div>
+                    <div class="combo-banner" style="display: none; pointer-events: none; position: absolute; top: auto; bottom: -10px; left: 0; right: 0; margin: 0 auto; width: max-content; background: linear-gradient(180deg, #d38df5 0%, #9a51d9 100%); color: #fff112; font-family: 'Fredoka One', cursive; padding: 4px 20px; border-radius: 14px; font-size: 1.4rem; z-index: 15; border: 3px solid #fff; box-shadow: 0 4px 8px rgba(0,0,0,0.3), inset 0 -2px 0 rgba(0,0,0,0.2), inset 0 2px 0 rgba(255,255,255,0.4); text-shadow: 2px 2px 0 #c25e00, -1.5px -1.5px 0 #c25e00, 1.5px -1.5px 0 #c25e00, -1.5px 1.5px 0 #c25e00, 0 3px 0 rgba(0,0,0,0.4); letter-spacing: 1px;">COMBO X4!</div>
                 </div>
-                <div class="stat-box">
-                    <div id="moves-label" class="stat-label pink-label">Moves</div>
-                    <div id="moves-display" class="stat-value">15</div>
+                
+                <!-- Right: Moves Box -->
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; background: #fffdf5; border-radius: 15px; padding: 8px 15px; min-width: 90px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border: 1px solid rgba(224, 212, 195, 0.5);">
+                    <div style="font-size: 0.85rem; color: #5a3a29; font-weight: bold; font-family: 'Fredoka One', cursive;">
+                        <span id="moves-label">Moves</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 4px; margin-top: 0px;">
+                        <span id="moves-display" style="font-size: 1.3rem; color: #5a3a29; font-weight: 900;">17</span>
+                        <span style="font-size: 1.1rem; color: #5a3a29; font-weight: bold;">➔</span>
+                    </div>
+                    <div style="font-size: 0.75rem; color: #5a3a29; font-family: 'Nunito', sans-serif; font-weight: bold; margin-top: 2px;">
+                        Score: <span id="score">0</span>
+                    </div>
                 </div>
+                
             </header>
 
-            <div class="character-area">
-                <div class="dog-character"></div>
-                <div class="combo-banner" style="display: none;"></div>
+            <div id="collect-panel" style="display: flex; flex-direction: row; align-items: center; justify-content: center; background: #f7f9f2; border: 2px solid #e0e6d6; border-radius: 20px; padding: 5px 20px; gap: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); width: fit-content; min-width: 250px; margin-top: 15px; z-index: 10;">
+                <!-- Dynamically populated by GameView -->
             </div>
 
-            <div class="main-content">
-                <main class="board-container" style="position: relative;">
-                    <canvas id="gameCanvas" width="600" height="600"></canvas>
-                    <canvas id="fxCanvas" width="600" height="600" style="position: absolute; top: 0; left: 0; pointer-events: none; z-index: 50;"></canvas>
-                </main>
-
-                <aside class="collect-panel" id="collect-panel">
-                    <div class="collect-title">Collect</div>
-                    <!-- Dynamically populated by GameView -->
-                </aside>
-            </div>
-
-            <div class="powerups-container">
-                <div id="btn-hammer" class="powerup-btn hammer" onclick="window.toggleBooster('hammer')">
-                    <span class="powerup-icon">🔨</span>
-                    <span id="badge-hammer" class="powerup-badge">2</span>
+            <div class="main-content" style="flex: 1; display: flex; flex-direction: column; width: 100%; align-items: center; justify-content: flex-start; gap: 15px; margin-top: 15px; padding-bottom: 70px;">
+                <div class="board-wrapper" style="width: 90%; max-width: 500px; flex: 1; display: flex; justify-content: center; align-items: center; min-width: 0; min-height: 0;">
+                    <main class="board-container" style="position: relative; width: 100%; max-height: 100%; aspect-ratio: 1; flex-shrink: 1; border: 6px solid #6b432a; border-radius: 15px; box-shadow: 0 6px 0 #4a2e1d; background: #fffcf4; padding: 4px;">
+                        <canvas id="gameCanvas" width="800" height="800" style="width: 100%; height: 100%;"></canvas>
+                        <canvas id="fxCanvas" width="800" height="800" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50;"></canvas>
+                    </main>
                 </div>
-                <div id="btn-bomb" class="powerup-btn bomb" onclick="window.toggleBooster('bomb')">
-                    <span class="powerup-icon">💣</span>
-                    <span id="badge-bomb" class="powerup-badge">5</span>
-                </div>
-                <div id="btn-shuffle" class="powerup-btn shuffle" onclick="window.toggleBooster('shuffle')">
-                    <span class="powerup-icon">🔄</span>
-                    <span id="badge-shuffle" class="powerup-badge">1</span>
+                
+                <div class="powerups-container-horiz" style="display: flex; flex-direction: row; justify-content: center; align-items: center; gap: 15px; background: #f0f7fa; border: 2px solid #d0e7ef; border-radius: 30px; padding: 10px 20px; box-shadow: 0 3px 5px rgba(0,0,0,0.1); width: fit-content;">
+                    <div id="btn-hammer" class="powerup-btn-horiz hammer" onclick="window.toggleBooster('hammer')" style="position: relative; width: 55px; height: 55px; background: linear-gradient(180deg, #c5ebf9 0%, #8bd4f0 100%); border-radius: 50%; display: flex; justify-content: center; align-items: center; border: 3px solid white; box-shadow: 0 3px 0 rgba(0,0,0,0.15); font-size: 1.6rem; cursor: pointer;">
+                        <span class="powerup-icon">🔨</span>
+                        <span id="badge-hammer" class="powerup-badge-horiz" style="position: absolute; bottom: -5px; right: -5px; background: #8e583c; color: white; font-size: 0.8rem; width: 22px; height: 22px; border-radius: 50%; display: flex; justify-content: center; align-items: center; border: 2px solid white; font-family: 'Nunito', sans-serif; font-weight: bold; box-shadow: 0 2px 0 #6e4029;">2</span>
+                    </div>
+                    <div id="btn-bomb" class="powerup-btn-horiz bomb" onclick="window.toggleBooster('bomb')" style="position: relative; width: 55px; height: 55px; background: linear-gradient(180deg, #fdf4b1 0%, #fae255 100%); border-radius: 50%; display: flex; justify-content: center; align-items: center; border: 3px solid white; box-shadow: 0 3px 0 rgba(0,0,0,0.15); font-size: 1.6rem; cursor: pointer;">
+                        <span class="powerup-icon">💣</span>
+                        <span id="badge-bomb" class="powerup-badge-horiz" style="position: absolute; bottom: -5px; right: -5px; background: #8e583c; color: white; font-size: 0.8rem; width: 22px; height: 22px; border-radius: 50%; display: flex; justify-content: center; align-items: center; border: 2px solid white; font-family: 'Nunito', sans-serif; font-weight: bold; box-shadow: 0 2px 0 #6e4029;">5</span>
+                    </div>
+                    <div id="btn-shuffle" class="powerup-btn-horiz shuffle" onclick="window.toggleBooster('shuffle')" style="position: relative; width: 55px; height: 55px; background: linear-gradient(180deg, #d3f3cd 0%, #95dd87 100%); border-radius: 50%; display: flex; justify-content: center; align-items: center; border: 3px solid white; box-shadow: 0 3px 0 rgba(0,0,0,0.15); font-size: 1.6rem; cursor: pointer;">
+                        <span class="powerup-icon">🔄</span>
+                        <span id="badge-shuffle" class="powerup-badge-horiz" style="position: absolute; bottom: -5px; right: -5px; background: #8e583c; color: white; font-size: 0.8rem; width: 22px; height: 22px; border-radius: 50%; display: flex; justify-content: center; align-items: center; border: 2px solid white; font-family: 'Nunito', sans-serif; font-weight: bold; box-shadow: 0 2px 0 #6e4029;">1</span>
+                    </div>
                 </div>
             </div>
+            
+            <!-- BOTTOM NAVIGATION BAR -->
+            <nav class="bottom-nav-bar" style="position: absolute; bottom: 0; left: 0; width: 100%; height: 60px; background: #fffcf4; border-top: 2px solid #e6dec8; display: flex; justify-content: space-around; align-items: center; z-index: 100; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); padding-bottom: env(safe-area-inset-bottom);">
+                <div class="nav-item" style="display: flex; flex-direction: column; align-items: center; color: #8e583c; cursor: pointer;">
+                    <span style="font-size: 1.5rem; margin-bottom: 2px; filter: grayscale(100%) opacity(0.7);">🏠</span>
+                    <span style="font-size: 0.6rem; font-weight: bold;">Home</span>
+                </div>
+                <div class="nav-item" style="display: flex; flex-direction: column; align-items: center; color: #8e583c; cursor: pointer;" onclick="document.getElementById('screen-game').style.display='none'; document.getElementById('screen-shop').style.display='flex';">
+                    <span style="font-size: 1.5rem; margin-bottom: 2px;">🏪</span>
+                    <span style="font-size: 0.6rem; font-weight: bold;">Shop</span>
+                </div>
+                <div class="nav-item play-btn-container" style="position: relative; margin-top: -20px;">
+                    <div style="width: 60px; height: 60px; background: linear-gradient(180deg, #bcf09e 0%, #66bb6a 100%); border-radius: 50%; display: flex; justify-content: center; align-items: center; border: 4px solid #fffcf4; box-shadow: 0 4px 0 #388e3c, 0 -2px 5px rgba(0,0,0,0.1); cursor: pointer;">
+                        <div style="width: 0; height: 0; border-top: 10px solid transparent; border-bottom: 10px solid transparent; border-left: 16px solid white; margin-left: 5px;"></div>
+                    </div>
+                </div>
+                <div class="nav-item" style="display: flex; flex-direction: column; align-items: center; color: #8e583c; cursor: pointer;">
+                    <span style="font-size: 1.5rem; margin-bottom: 2px; filter: grayscale(100%) opacity(0.7);">🏆</span>
+                    <span style="font-size: 0.6rem; font-weight: bold;">Rank</span>
+                </div>
+                <div class="nav-item" style="display: flex; flex-direction: column; align-items: center; color: #8e583c; cursor: pointer;">
+                    <span style="font-size: 1.5rem; margin-bottom: 2px; filter: grayscale(100%) opacity(0.7);">⚙️</span>
+                    <span style="font-size: 0.6rem; font-weight: bold;">Settings</span>
+                </div>
+            </nav>
+
         </div>
 
         <!-- 3. SHOP SCREEN -->
-        <div id="screen-shop" class="game-screen" style="display: none; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: 40px; height: 100%; width: 100%;">
+        <div id="screen-shop" class="game-screen" style="display: none; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: 40px; flex: 1; min-height: 0; width: 100%;">
             <div style="display: flex; align-items: center; justify-content: space-between; width: 90%; max-width: 400px; margin-bottom: 20px;">
                 <h2 style="color: white; font-size: 2.5rem; text-shadow: 2px 2px 0 #9c3f1f; font-family: 'Fredoka One'; margin: 0;">Shop</h2>
                 <div style="background: rgba(0,0,0,0.5); padding: 5px 15px; border-radius: 20px; color: gold; font-family: 'Fredoka One'; font-size: 1.5rem; display: flex; align-items: center; gap: 5px; border: 2px solid rgba(255,215,0,0.5);">
@@ -141,7 +184,7 @@
         </div>
 
         <!-- 4. LEADERBOARD SCREEN -->
-        <div id="screen-leaderboard" class="game-screen" style="display: none; flex-direction: column; align-items: center; padding-top: 40px; height: 100%; width: 100%;">
+        <div id="screen-leaderboard" class="game-screen" style="display: none; flex-direction: column; align-items: center; padding-top: 40px; flex: 1; min-height: 0; width: 100%;">
             <h2 style="color: white; font-size: 2.5rem; text-shadow: 2px 2px 0 #9c3f1f; font-family: 'Fredoka One';">Top Kibblers</h2>
             
             <div class="leaderboard-container" id="leaderboard-list">
@@ -150,7 +193,7 @@
         </div>
 
         <!-- 5. SETTINGS SCREEN -->
-        <div id="screen-settings" class="game-screen" style="display: none; position: relative; width: 100%; height: 100%; align-items: center; justify-content: center; background: rgba(0,0,0,0.4); backdrop-filter: blur(5px);">
+        <div id="screen-settings" class="game-screen" style="display: none; position: relative; width: 100%; flex: 1; min-height: 0; align-items: center; justify-content: center; background: rgba(0,0,0,0.4); backdrop-filter: blur(5px);">
             <div class="settings-card" style="position: relative; width: 90%; max-width: 400px; background: #fff8f0; border-radius: 25px; border: 5px solid #8e583c; box-shadow: 0 10px 0 #6e4029, 0 20px 25px rgba(0,0,0,0.5); padding: 25px; display: flex; flex-direction: column; gap: 20px;">
                 <button onclick="gameState.switchScreen('screen-home'); if(window.audioManager) window.audioManager.play('click');" style="position: absolute; top: -15px; right: -15px; width: 45px; height: 45px; border-radius: 50%; background: #ff4757; color: white; font-weight: bold; font-size: 1.5rem; border: 3px solid white; box-shadow: 0 4px 0 #c0392b; cursor: pointer; display: flex; justify-content: center; align-items: center; z-index: 10;">X</button>
                 
@@ -272,6 +315,6 @@
     <!-- Audio Toggle (Mute Button) -->
     <div id="mute-btn" class="mute-btn" onclick="toggleMute()" style="position: absolute; top: 15px; left: 15px; font-size: 1.8rem; cursor: pointer; z-index: 100; text-shadow: 2px 2px 0px rgba(0,0,0,0.2);">🔊</div>
 
-    <script type="module" src="main.js"></script>
+    <script type="module" src="main.js?v=14"></script>
 </body>
 </html>

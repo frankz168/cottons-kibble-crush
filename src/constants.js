@@ -1,6 +1,6 @@
 export const ROWS = 8;
 export const COLS = 8;
-export const TYPES = ['🦴', '🍪', '🥩', '🎾', '🍗', '🧀', '👟', '🧶'];
+export const TYPES = ['🦴', '🥩', '🎾', '🐾', '🍗', '🧀', '👟', '🧶', '🍪'];
 
 export const STATE = {
     IDLE: 0,

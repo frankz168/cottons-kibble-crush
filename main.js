@@ -19,6 +19,28 @@ window.toggleMute = function() {
 const gameState = new GameState();
 window.gameState = gameState;
 
+// Preload Custom Icon Images
+window.iconImages = {
+    tennis: new Image(),
+    meat: new Image(),
+    bone: new Image(),
+    paw: new Image(),
+    drumstick: new Image(),
+    cheese: new Image(),
+    shoe: new Image(),
+    yarn: new Image(),
+    cookie: new Image()
+};
+window.iconImages.tennis.src = 'assets/images/icon_tennis.png';
+window.iconImages.meat.src = 'assets/images/icon_meat.png';
+window.iconImages.bone.src = 'assets/images/icon_bone.png';
+window.iconImages.paw.src = 'assets/images/icon_paw.png';
+window.iconImages.drumstick.src = 'assets/images/icon_drumstick.png';
+window.iconImages.cheese.src = 'assets/images/icon_cheese.png';
+window.iconImages.shoe.src = 'assets/images/icon_shoe.png';
+window.iconImages.yarn.src = 'assets/images/icon_yarn.png';
+window.iconImages.cookie.src = 'assets/images/icon_cookie.png';
+
 document.addEventListener('DOMContentLoaded', () => {
     const view = new GameView('gameCanvas', 'score');
     const model = new GameModel(view.tileSize);
@@ -121,14 +143,20 @@ document.addEventListener('DOMContentLoaded', () => {
             
             let posStyle = `position: absolute; bottom: ${bottomY}px; left: calc(50% + ${offsetX}px); transform: translateX(-50%);`;
             
+            let zoneClass = 'zone-green';
+            if (i > 5 && i <= 10) zoneClass = 'zone-blue';
+            else if (i > 10 && i <= 15) zoneClass = 'zone-purple';
+            else if (i > 15 && i <= 20) zoneClass = 'zone-pink';
+            else if (i > 20) zoneClass = 'zone-brown';
+            
             if (i === unlocked) {
                 latestX = offsetX;
                 latestY = bottomY;
                 let config = window.generateLevelConfig(i);
-                html += `<button class="level-btn unlocked current" style="${posStyle}" onclick="window.startLevel(${i}, ${config})">${i}</button>`;
+                html += `<button class="level-btn unlocked current ${zoneClass}" style="${posStyle}" onclick="window.startLevel(${i}, ${config})">${i}</button>`;
             } else if (i < unlocked) {
                 let config = window.generateLevelConfig(i);
-                html += `<button class="level-btn unlocked" style="${posStyle}" onclick="window.startLevel(${i}, ${config})">${i}</button>`;
+                html += `<button class="level-btn unlocked ${zoneClass}" style="${posStyle}" onclick="window.startLevel(${i}, ${config})">${i}</button>`;
             } else {
                 html += `<button class="level-btn locked" style="${posStyle}">🔒</button>`;
             }
