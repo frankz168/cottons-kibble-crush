@@ -246,7 +246,18 @@ export class ParticleSystem {
 
     draw() {
         if (!this.ctx || !this.canvas) return;
+        const hasEffects = this.lasers.length > 0 || this.particles.length > 0 || this.texts.length > 0;
+        
+        if (!hasEffects) {
+            if (this.wasDrawn) {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                this.wasDrawn = false;
+            }
+            return;
+        }
+
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.wasDrawn = true;
         
         for (let i = 0; i < this.lasers.length; i++) {
             this.lasers[i].draw(this.ctx);

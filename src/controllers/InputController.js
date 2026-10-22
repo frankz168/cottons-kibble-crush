@@ -90,7 +90,7 @@ export class InputController {
         const dx = clientX - this.startX;
         const dy = clientY - this.startY;
         
-        const threshold = 25; // Drag threshold in px
+        const threshold = 20; // Natural, comfortable swipe threshold in px
 
         if (Math.abs(dx) > threshold || Math.abs(dy) > threshold) {
             this.hasSwiped = true;

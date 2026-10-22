@@ -23,7 +23,7 @@ export class GameLoop {
         if (!this.isRunning) return;
         
         if (!this.lastTime) this.lastTime = time;
-        const dt = time - this.lastTime;
+        const dt = Math.min(time - this.lastTime, 50);
         this.lastTime = time;
 
         if (this.updateCallback) this.updateCallback(dt);

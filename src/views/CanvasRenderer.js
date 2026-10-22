@@ -86,10 +86,6 @@ export class CanvasRenderer {
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'middle';
         
-        this.ctx.shadowColor = 'rgba(0,0,0,0.15)';
-        this.ctx.shadowBlur = 5;
-        this.ctx.shadowOffsetY = 3;
-        
         // Draw the custom images or fallback to emoji
         const size = this.tileSize * 0.9;
         const offset = -size / 2;

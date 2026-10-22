@@ -30,7 +30,7 @@ export class GameController {
         if (typeof window === 'undefined') return;
         
         const saveHandler = () => {
-            this.persistCurrentSession();
+            this.persistCurrentSession(true);
         };
 
         window.addEventListener('visibilitychange', () => {
@@ -42,15 +42,36 @@ export class GameController {
         window.addEventListener('beforeunload', saveHandler);
     }
 
-    persistCurrentSession() {
+    persistCurrentSession(immediate = false) {
         if (!this.gameState || this.gameState.currentScreen !== SCREEN.GAME || this.isGameOverChecked) return;
-        if (this.repository && typeof this.repository.saveActiveSession === 'function') {
-            const data = {
-                ...this.gameState.serializeSession(),
-                grid: this.model.serializeGrid()
-            };
-            this.repository.saveActiveSession(data);
+
+        if (immediate) {
+            if (this.persistTimeout) {
+                clearTimeout(this.persistTimeout);
+                this.persistTimeout = null;
+            }
+            if (this.repository && typeof this.repository.saveActiveSession === 'function') {
+                const data = {
+                    ...this.gameState.serializeSession(),
+                    grid: this.model.serializeGrid()
+                };
+                this.repository.saveActiveSession(data);
+            }
+            return;
         }
+
+        // Debounce to prevent blocking the WebKit JS thread during active matching animations on Safari
+        if (this.persistTimeout) clearTimeout(this.persistTimeout);
+        this.persistTimeout = setTimeout(() => {
+            this.persistTimeout = null;
+            if (this.repository && typeof this.repository.saveActiveSession === 'function') {
+                const data = {
+                    ...this.gameState.serializeSession(),
+                    grid: this.model.serializeGrid()
+                };
+                this.repository.saveActiveSession(data);
+            }
+        }, 200);
     }
 
     restoreActiveSession() {
@@ -343,16 +364,18 @@ export class GameController {
             const charArea = document.querySelector('.character-area');
             if (charArea) {
                 charArea.classList.remove('combo-shake');
-                void charArea.offsetWidth; 
-                charArea.classList.add('combo-shake');
+                requestAnimationFrame(() => {
+                    charArea.classList.add('combo-shake');
+                });
                 
                 const banner = document.querySelector('.combo-banner');
                 if (banner) {
                     banner.innerText = textToShow || `COMBO X${this.comboMultiplier}!`;
                     banner.style.display = 'block';
                     banner.classList.remove('combo-fade');
-                    void banner.offsetWidth;
-                    banner.classList.add('combo-fade');
+                    requestAnimationFrame(() => {
+                        banner.classList.add('combo-fade');
+                    });
                 }
                 
                 if (textToShow && window.audioManager) {

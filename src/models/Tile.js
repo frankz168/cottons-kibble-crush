@@ -17,24 +17,31 @@ export class Tile {
     }
 
     update(dt) {
-        let dx = this.targetX - this.pixelX;
-        let dy = this.targetY - this.pixelY;
-        
-        let dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist > 0.5) {
-            const lerpFactor = 1 - Math.pow(0.005, dt / 1000); 
-            this.pixelX += dx * lerpFactor;
-            this.pixelY += dy * lerpFactor;
+        const dx = this.targetX - this.pixelX;
+        const dy = this.targetY - this.pixelY;
+        const dist = Math.hypot(dx, dy);
+
+        if (dist > 1) {
+            // Natural, satisfying glide (~180ms - 200ms) like classic Match-3 games
+            const speed = Math.max(dist * 12, 320);
+            const step = speed * (dt / 1000);
+            if (step >= dist) {
+                this.pixelX = this.targetX;
+                this.pixelY = this.targetY;
+            } else {
+                this.pixelX += (dx / dist) * step;
+                this.pixelY += (dy / dist) * step;
+            }
         } else {
             this.pixelX = this.targetX;
             this.pixelY = this.targetY;
         }
 
         if (this.matched) {
-            this.scale -= 3 * (dt / 1000);
+            this.scale -= 4.5 * (dt / 1000); // Smooth ~220ms crunch shrink
             if (this.scale < 0) this.scale = 0;
         } else if (this.scale < 1) {
-            this.scale += 3 * (dt / 1000);
+            this.scale += 4.5 * (dt / 1000); // Smooth ~220ms pop-in
             if (this.scale > 1) this.scale = 1;
         }
     }
