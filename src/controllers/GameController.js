@@ -1,4 +1,4 @@
-import { STATE, COLS, ROWS } from '../constants.js';
+import { STATE, COLS, ROWS, BOOSTER_TYPE, SOUND_EFFECT, TILE_TYPE, SPECIAL_TYPE, COMBO_TEXT, GAME_MODE, SCREEN, DIRECTION } from '../constants.js';
 import { InputController } from './InputController.js';
 import { GameLoop } from './GameLoop.js';
 
@@ -10,6 +10,8 @@ export class GameController {
         
         this.tile1 = null;
         this.tile2 = null;
+        this.comboMultiplier = 1;
+        this.isGameOverChecked = false;
 
         // Setup Controllers
         this.input = new InputController(this.view.canvas || document.getElementById('gameCanvas'), this.view.tileSize);
@@ -19,22 +21,71 @@ export class GameController {
         this.input.onDragEnd = this.onDragEnd.bind(this);
 
         this.gameLoop = new GameLoop(this.update.bind(this), this.render.bind(this));
+
+        // State persistence on page unload / hide / tab switch
+        this.bindLifecycleEvents();
+    }
+
+    bindLifecycleEvents() {
+        if (typeof window === 'undefined') return;
+        
+        const saveHandler = () => {
+            this.persistCurrentSession();
+        };
+
+        window.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') {
+                saveHandler();
+            }
+        });
+        window.addEventListener('pagehide', saveHandler);
+        window.addEventListener('beforeunload', saveHandler);
+    }
+
+    persistCurrentSession() {
+        if (!this.gameState || this.gameState.currentScreen !== SCREEN.GAME || this.isGameOverChecked) return;
+        if (this.repository && typeof this.repository.saveActiveSession === 'function') {
+            const data = {
+                ...this.gameState.serializeSession(),
+                grid: this.model.serializeGrid()
+            };
+            this.repository.saveActiveSession(data);
+        }
+    }
+
+    restoreActiveSession() {
+        if (!this.repository || typeof this.repository.loadActiveSession !== 'function') return false;
+        const saved = this.repository.loadActiveSession();
+        if (!saved || !saved.levelData || !saved.session || !saved.grid) return false;
+
+        const restoredState = this.gameState.restoreSession(saved);
+        const restoredGrid = this.model.deserializeGrid(saved.grid);
+
+        if (restoredState && restoredGrid) {
+            this.isGameOverChecked = false;
+            this.model.currentState = STATE.IDLE;
+            this.gameState.switchScreen(SCREEN.GAME);
+            this.view.updateHUD(this.gameState);
+            return true;
+        }
+        return false;
     }
     
     activateBooster(type) {
         if (!this.gameState || this.model.currentState !== STATE.IDLE) return;
-        if (window.audioManager) window.audioManager.play('click');
+        if (window.audioManager) window.audioManager.play(SOUND_EFFECT.CLICK);
         
-        if (type === 'shuffle' && this.gameState.boosters.shuffle > 0) {
+        if (type === BOOSTER_TYPE.SHUFFLE && this.gameState.boosters[BOOSTER_TYPE.SHUFFLE] > 0) {
             this.model.useShuffle(this.gameState);
-            this.gameState.consumeBooster('shuffle');
-            this.model.currentState = STATE.MATCHING; // Falling or matching to resolve incidental matches
+            this.gameState.consumeBooster(BOOSTER_TYPE.SHUFFLE);
+            this.model.currentState = STATE.MATCHING;
             this.view.updateHUD(this.gameState);
+            this.persistCurrentSession();
             return;
         }
 
         this.gameState.toggleBooster(type);
-        this.view.updateHUD(this.gameState); // To update UI visuals
+        this.view.updateHUD(this.gameState);
     }
 
     onDragStart(c, r) {
@@ -42,23 +93,24 @@ export class GameController {
         
         // Check if booster is active
         if (this.gameState && this.gameState.activeBooster) {
-            if (this.gameState.activeBooster === 'hammer') {
+            if (this.gameState.activeBooster === BOOSTER_TYPE.HAMMER) {
                 this.model.useHammer(c, r, this.gameState);
-                this.gameState.consumeBooster('hammer');
+                this.gameState.consumeBooster(BOOSTER_TYPE.HAMMER);
                 this.model.currentState = STATE.MATCHING;
-            } else if (this.gameState.activeBooster === 'bomb') {
+            } else if (this.gameState.activeBooster === BOOSTER_TYPE.BOMB) {
                 this.model.useBomb(c, r, this.gameState);
-                this.gameState.consumeBooster('bomb');
+                this.gameState.consumeBooster(BOOSTER_TYPE.BOMB);
                 this.model.currentState = STATE.MATCHING;
             }
             this.view.updateHUD(this.gameState);
+            this.persistCurrentSession();
             
             // Abort drag
             this.input.isDragging = false;
             return;
         }
 
-        this.input.selectedTile = this.model.grid[c][r];
+        this.input.selectedTile = this.model.grid[c] ? this.model.grid[c][r] : null;
     }
 
     onSwipe(c, r, dC, dR) {
@@ -79,12 +131,13 @@ export class GameController {
                 this.model.currentState = STATE.SWAPPING;
                 
                 if (this.gameState) {
-                    if (window.audioManager) window.audioManager.play('swap');
+                    if (window.audioManager) window.audioManager.play(SOUND_EFFECT.SWAP);
                     this.gameState.consumeMove();
                     this.view.updateHUD(this.gameState);
+                    this.persistCurrentSession();
                 }
             } else {
-                if (window.audioManager) window.audioManager.play('click');
+                if (window.audioManager) window.audioManager.play(SOUND_EFFECT.CLICK);
             }
         }
         this.input.selectedTile = null;
@@ -106,7 +159,7 @@ export class GameController {
         let isMoving = false;
         for (let c = 0; c < COLS; c++) {
             for (let r = 0; r < ROWS; r++) {
-                let t = this.model.grid[c][r];
+                let t = this.model.grid[c] ? this.model.grid[c][r] : null;
                 if (t) {
                     t.update(dt);
                     let dist = Math.hypot(t.targetX - t.pixelX, t.targetY - t.pixelY);
@@ -116,7 +169,7 @@ export class GameController {
             }
         }
 
-        if (this.gameState && this.gameState.currentScreen === 'screen-game' && this.gameState.levelData.gameMode === 'time' && this.model.currentState !== STATE.WIN_ANIMATION && this.gameState.session.timeRemaining > 0) {
+        if (this.gameState && this.gameState.currentScreen === SCREEN.GAME && this.gameState.levelData.gameMode === GAME_MODE.TIME && this.model.currentState !== STATE.WIN_ANIMATION && this.gameState.session.timeRemaining > 0) {
             this.gameState.session.timeRemaining -= (dt / 1000);
             this.view.updateHUD(this.gameState);
             if (this.gameState.session.timeRemaining <= 0) {
@@ -131,11 +184,11 @@ export class GameController {
                 let rainbowTile = null;
                 let targetType = null;
                 
-                if (this.tile1.type === '🌈' && this.tile2 && this.tile2.type !== '🌈') {
+                if (this.tile1 && this.tile1.type === TILE_TYPE.RAINBOW && this.tile2 && this.tile2.type !== TILE_TYPE.RAINBOW) {
                     isRainbowSwap = true;
                     rainbowTile = this.tile1;
                     targetType = this.tile2.type;
-                } else if (this.tile2 && this.tile2.type === '🌈' && this.tile1.type !== '🌈') {
+                } else if (this.tile2 && this.tile2.type === TILE_TYPE.RAINBOW && this.tile1 && this.tile1.type !== TILE_TYPE.RAINBOW) {
                     isRainbowSwap = true;
                     rainbowTile = this.tile2;
                     targetType = this.tile1.type;
@@ -145,10 +198,10 @@ export class GameController {
                 
                 if (isRainbowSwap) {
                     rainbowTile.targetType = targetType;
-                    rainbowTile.special = 'rainbow-blast';
+                    rainbowTile.special = SPECIAL_TYPE.RAINBOW_BLAST;
                     matches.push({
                         tiles: [rainbowTile],
-                        shape: 'normal',
+                        shape: SPECIAL_TYPE.NORMAL,
                         centerTile: null
                     });
                 }
@@ -159,16 +212,18 @@ export class GameController {
                     this.comboMultiplier++;
                     this.model.currentState = STATE.MATCHING;
                     if (this.gameState) {
-                        if (window.audioManager) window.audioManager.play('bomb');
+                        if (window.audioManager) window.audioManager.play(SOUND_EFFECT.BOMB);
                         this.view.updateHUD(this.gameState);
                     }
                     this.checkHighScore();
+                    this.persistCurrentSession();
                 } else {
                     this.model.swapTiles(this.tile1, this.tile2);
                     this.model.currentState = STATE.REVERTING;
                 }
             } else if (this.model.currentState === STATE.REVERTING) {
                 this.model.currentState = STATE.IDLE;
+                this.persistCurrentSession();
             } else if (this.model.currentState === STATE.MATCHING) {
                 this.model.applyGravity();
                 this.model.currentState = STATE.FALLING;
@@ -180,10 +235,11 @@ export class GameController {
                     this.comboMultiplier++;
                     this.model.currentState = STATE.MATCHING;
                     if (this.gameState) {
-                        if (window.audioManager) window.audioManager.play('bark');
+                        if (window.audioManager) window.audioManager.play(SOUND_EFFECT.BARK);
                         this.view.updateHUD(this.gameState);
                     }
                     this.checkHighScore();
+                    this.persistCurrentSession();
                 } else {
                     this.model.moveCats();
                     let postCatMatches = this.model.findMatches();
@@ -193,13 +249,14 @@ export class GameController {
                         if (this.gameState) this.view.updateHUD(this.gameState);
                     } else {
                         this.model.currentState = STATE.IDLE;
+                        this.persistCurrentSession();
                     }
                 }
             } else if (this.model.currentState === STATE.IDLE) {
-                if (this.gameState && this.gameState.currentScreen === 'screen-game') {
+                if (this.gameState && this.gameState.currentScreen === SCREEN.GAME) {
                     if (this.isWinConditionMet()) {
                         let bonusCount = 0;
-                        if (this.gameState.levelData.gameMode === 'time') {
+                        if (this.gameState.levelData.gameMode === GAME_MODE.TIME) {
                             bonusCount = Math.floor(this.gameState.session.timeRemaining);
                             this.gameState.session.timeRemaining = 0;
                         } else {
@@ -214,18 +271,16 @@ export class GameController {
                             for (let i = 0; i < bonusCount; i++) {
                                 let rC = Math.floor(Math.random() * COLS);
                                 let rR = Math.floor(Math.random() * ROWS);
-                                if (this.model.grid[rC][rR]) {
+                                if (this.model.grid[rC] && this.model.grid[rC][rR]) {
                                     targets.push(this.model.grid[rC][rR]);
                                 }
                             }
                             
                             if (targets.length > 0) {
-                                // Add big bonus score
                                 this.gameState.session.currentScore += bonusCount * 1000;
                                 
-                                // Spawn laser and destroy rows/cols
                                 targets.forEach(t => {
-                                    const orientation = Math.random() > 0.5 ? 'horizontal' : 'vertical';
+                                    const orientation = Math.random() > 0.5 ? DIRECTION.HORIZONTAL : DIRECTION.VERTICAL;
                                     const colors = ['#ffeb3b', '#ff7eb3', '#52e3ff', '#a4ff52'];
                                     const color = colors[Math.floor(Math.random() * colors.length)];
                                     
@@ -233,28 +288,27 @@ export class GameController {
                                         const centerX = t.c * this.model.tileSize + this.model.tileSize / 2;
                                         const centerY = t.r * this.model.tileSize + this.model.tileSize / 2;
                                         window.particleSystem.spawnLaser(centerX, centerY, orientation, color);
-                                        window.particleSystem.spawnExplosion(centerX, centerY, color, 15);
+                                        window.particleSystem.spawnExplosion(centerX, centerY, color, 6);
                                         window.particleSystem.spawnText(centerX, centerY, 'SUGAR CRUSH!');
                                     }
                                     
-                                    // Destroy all tiles in that line
-                                    if (orientation === 'horizontal') {
+                                    if (orientation === DIRECTION.HORIZONTAL) {
                                         for (let c = 0; c < COLS; c++) {
-                                            if (this.model.grid[c][t.r]) this.model.grid[c][t.r].matched = true;
+                                            if (this.model.grid[c] && this.model.grid[c][t.r]) this.model.grid[c][t.r].matched = true;
                                         }
                                     } else {
                                         for (let r = 0; r < ROWS; r++) {
-                                            if (this.model.grid[t.c][r]) this.model.grid[t.c][r].matched = true;
+                                            if (this.model.grid[t.c] && this.model.grid[t.c][r]) this.model.grid[t.c][r].matched = true;
                                         }
                                     }
                                 });
                                 
                                 if (window.audioManager) {
-                                    window.audioManager.play('bomb');
-                                    window.audioManager.play('bark');
+                                    window.audioManager.play(SOUND_EFFECT.BOMB);
+                                    window.audioManager.play(SOUND_EFFECT.BARK);
                                 }
                                 
-                                this.model.currentState = STATE.MATCHING; // Let gravity handle the rest
+                                this.model.currentState = STATE.MATCHING;
                                 this.view.updateHUD(this.gameState);
                             } else {
                                 this.checkGameOver();
@@ -266,8 +320,6 @@ export class GameController {
                         this.checkGameOver();
                     }
                 }
-            } else if (this.model.currentState === STATE.WIN_ANIMATION) {
-                // This state is now bypassed instantly into MATCHING above
             }
         }
     }
@@ -278,14 +330,14 @@ export class GameController {
         if (matches && matches.length > 0) {
             let maxLen = Math.max(...matches.map(m => m.tiles.length));
             if (maxLen >= 5) {
-                textToShow = "PAW-SOME!";
+                textToShow = COMBO_TEXT.PAW_SOME;
             } else if (maxLen === 4) {
-                textToShow = "GOOD BOY!";
+                textToShow = COMBO_TEXT.GOOD_BOY;
             }
         }
         
-        if (this.comboMultiplier === 2 && !textToShow) textToShow = "WOW!";
-        if (this.comboMultiplier >= 3 && !textToShow) textToShow = "FANTASTIC!";
+        if (this.comboMultiplier === 2 && !textToShow) textToShow = COMBO_TEXT.WOW;
+        if (this.comboMultiplier >= 3 && !textToShow) textToShow = COMBO_TEXT.FANTASTIC;
         
         if (textToShow || this.comboMultiplier > 1) {
             const charArea = document.querySelector('.character-area');
@@ -304,7 +356,7 @@ export class GameController {
                 }
                 
                 if (textToShow && window.audioManager) {
-                    window.audioManager.play('bark');
+                    window.audioManager.play(SOUND_EFFECT.BARK);
                 }
             }
         }
@@ -313,7 +365,7 @@ export class GameController {
     checkHighScore() {
         if (!this.gameState) return;
         let highScore = this.repository.loadScore();
-        if(this.gameState.session.currentScore > highScore) {
+        if (this.gameState.session.currentScore > highScore) {
             this.repository.saveScore(this.gameState.session.currentScore);
         }
     }
@@ -325,7 +377,7 @@ export class GameController {
             const target = this.gameState.levelData.objectives[type];
             const collected = this.gameState.session.collectedItems[type] || 0;
             if (collected < target) {
-                return false; // Not all objectives met
+                return false;
             }
         }
         return true;
@@ -335,11 +387,16 @@ export class GameController {
         if (this.isGameOverChecked) return;
         this.isGameOverChecked = true;
 
+        // Clear active mid-level session since level is completed
+        if (this.repository && typeof this.repository.clearActiveSession === 'function') {
+            this.repository.clearActiveSession();
+        }
+
         const isWin = this.isWinConditionMet();
         const title = isWin ? "Level Complete!" : "Game Over!";
         
         let msg = "Out of moves!";
-        if (this.gameState.levelData.gameMode === 'time') {
+        if (this.gameState.levelData.gameMode === GAME_MODE.TIME) {
             msg = isWin ? "Awesome! You completed the level!" : "Time's up!";
         } else {
             msg = isWin ? "Awesome! You completed the level!" : "Out of moves!";
@@ -350,18 +407,15 @@ export class GameController {
         const coinsEl = document.getElementById('game-over-coins');
 
         if (isWin) {
-            // Reward coins based on remaining moves or time + base reward
-            let bonusAmount = this.gameState.levelData.gameMode === 'time' ? 
+            let bonusAmount = this.gameState.levelData.gameMode === GAME_MODE.TIME ? 
                               Math.floor(this.gameState.session.timeRemaining) : 
                               this.gameState.session.movesLeft;
                               
             coinReward = 50 + (bonusAmount * 10);
             this.repository.addCoins(coinReward);
             
-            // Unlock next level
             this.repository.unlockLevel(this.gameState.levelData.currentLevel + 1);
             
-            // Show reward in UI
             if (rewardEl) rewardEl.style.display = 'block';
             if (coinsEl) coinsEl.innerText = `+${coinReward}`;
         } else {
@@ -373,26 +427,24 @@ export class GameController {
         document.getElementById('game-over-overlay').style.display = 'flex';
         
         if (isWin && window.particleSystem) {
-            window.particleSystem.spawnExplosion(window.innerWidth / 2, window.innerHeight / 2, '🎉');
+            window.particleSystem.spawnExplosion(window.innerWidth / 2, window.innerHeight / 2, '🎉', 15);
         }
         
-        if (window.audioManager) window.audioManager.play('click');
+        if (window.audioManager) window.audioManager.play(SOUND_EFFECT.CLICK);
         
-        // Define what happens when user clicks OK
         window.closeGameOver = () => {
-            if (window.audioManager) window.audioManager.play('click');
+            if (window.audioManager) window.audioManager.play(SOUND_EFFECT.CLICK);
             document.getElementById('game-over-overlay').style.display = 'none';
             if (rewardEl) rewardEl.style.display = 'none';
             
             this.isGameOverChecked = false;
             
-            // Go back to level select screen
-            this.gameState.switchScreen('screen-levels');
+            if (this.particleSystem) this.particleSystem.clear();
+
+            this.gameState.switchScreen(SCREEN.LEVELS);
             
-            // Re-render level buttons on home screen
             if (window.renderLevels) window.renderLevels();
             
-            // Reset grid so it's fresh for next time
             this.model.initGrid();
             this.view.updateHUD(this.gameState);
         };

@@ -1,4 +1,7 @@
 import { GameModel } from './src/models/GameModel.js';
+import { GameState } from './src/models/GameState.js';
+import { ParticleSystem } from './src/utils/ParticleSystem.js';
+import { STATE, TILE_TYPE, SPECIAL_TYPE, BOOSTER_TYPE, GAME_MODE, STORAGE_KEY } from './src/constants.js';
 
 global.window = {
     audioManager: { play: () => {} },
@@ -12,6 +15,7 @@ function assert(condition, message) {
         console.log(`✅ PASS: ${message}`);
     } else {
         console.error(`❌ FAIL: ${message}`);
+        process.exitCode = 1;
     }
 }
 
@@ -33,7 +37,7 @@ async function runTests() {
         const model = new GameModel(100);
         model.initGrid();
         
-        const type = '🦴';
+        const type = TILE_TYPE.BONE;
         model.grid[0][0].type = type;
         model.grid[1][0].type = type;
         model.grid[2][0].type = type;
@@ -79,7 +83,7 @@ async function runTests() {
     // Test 5: Cat Thief Movement
     try {
         const model = new GameModel(100);
-        model.initGrid(['🦴', '🍪'], 0, 1);
+        model.initGrid(undefined, 0, 1);
         
         let catCount = 0;
         let catTile = null;
@@ -111,9 +115,84 @@ async function runTests() {
         const moved = (initialC !== newCatTile.c) || (initialR !== newCatTile.r);
         assert(moved, "Cat Thief should move to a new adjacent tile after moveCats() is called");
         assert(newCatTile.moveCount === 1, "Cat Thief moveCount should increment to 1");
-        
     } catch (e) {
         assert(false, "Cat Thief Logic threw an error: " + e);
     }
+
+    // Test 6: Mid-Level State Persistence (Serialization & Deserialization)
+    try {
+        const model1 = new GameModel(100);
+        model1.initGrid();
+        model1.grid[1][2].type = TILE_TYPE.COOKIE;
+        model1.grid[1][2].isFrozen = true;
+        model1.grid[3][4].special = SPECIAL_TYPE.STRIPED_V;
+
+        const serialized = model1.serializeGrid();
+        assert(Array.isArray(serialized) && serialized.length === 64, "Serialized grid should contain 64 tiles");
+
+        const model2 = new GameModel(100);
+        const restored = model2.deserializeGrid(serialized);
+        assert(restored === true, "Deserialization should succeed");
+        assert(model2.grid[1][2].type === TILE_TYPE.COOKIE, "Restored tile type should match");
+        assert(model2.grid[1][2].isFrozen === true, "Restored frozen status should match");
+        assert(model2.grid[3][4].special === SPECIAL_TYPE.STRIPED_V, "Restored special status should match");
+    } catch (e) {
+        assert(false, "State persistence threw an error: " + e);
+    }
+
+    // Test 7: GameState Session Persistence
+    try {
+        const gs = new GameState();
+        gs.startLevel(3, {
+            targetScore: 2500,
+            maxMoves: 20,
+            objectives: { [TILE_TYPE.BONE]: 14, [TILE_TYPE.MEAT]: 8 }
+        });
+        gs.session.currentScore = 1500;
+        gs.session.movesLeft = 12;
+        gs.session.collectedItems[TILE_TYPE.BONE] = 7;
+
+        const serializedSession = gs.serializeSession();
+        const gs2 = new GameState();
+        const success = gs2.restoreSession(serializedSession);
+
+        assert(success === true, "Session restoration should succeed");
+        assert(gs2.levelData.currentLevel === 3, "Restored level number should match");
+        assert(gs2.session.currentScore === 1500, "Restored score should match");
+        assert(gs2.session.movesLeft === 12, "Restored moves left should match");
+        assert(gs2.session.collectedItems[TILE_TYPE.BONE] === 7, "Restored collected goals should match");
+    } catch (e) {
+        assert(false, "GameState session persistence threw an error: " + e);
+    }
+
+    // Test 8: Particle Pooling & Flat Memory across 25+ matches
+    try {
+        const ps = new ParticleSystem(null);
+        for (let match = 0; match < 25; match++) {
+            ps.spawnExplosion(100, 100, '#ffeb3b', 10);
+            ps.spawnText(100, 100, '+50');
+            ps.spawnLaser(100, 100, 'vertical', '#ffeb3b');
+            ps.update(0.5); // Age out particles
+        }
+        assert(ps.particles.length <= 120, "Particle count should stay strictly capped at MAX_PARTICLES");
+        assert(ps.particlePool.length > 0, "Expired particles should be recycled into the object pool");
+        assert(ps.texts.length <= 15, "Text count should stay strictly capped at MAX_TEXTS");
+        assert(ps.lasers.length <= 6, "Laser count should stay strictly capped at MAX_LASERS");
+    } catch (e) {
+        assert(false, "Particle Pooling test threw an error: " + e);
+    }
+
+    // Test 9: Enums Integrity
+    try {
+        assert(Object.isFrozen(STATE), "STATE enum should be frozen");
+        assert(Object.isFrozen(TILE_TYPE), "TILE_TYPE enum should be frozen");
+        assert(Object.isFrozen(SPECIAL_TYPE), "SPECIAL_TYPE enum should be frozen");
+        assert(Object.isFrozen(BOOSTER_TYPE), "BOOSTER_TYPE enum should be frozen");
+        assert(Object.isFrozen(GAME_MODE), "GAME_MODE enum should be frozen");
+        assert(Object.isFrozen(STORAGE_KEY), "STORAGE_KEY enum should be frozen");
+    } catch (e) {
+        assert(false, "Enums integrity threw an error: " + e);
+    }
 }
+
 runTests();

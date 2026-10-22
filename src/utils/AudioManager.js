@@ -1,19 +1,22 @@
+import { SOUND_EFFECT, BGM_TRACK } from '../constants.js';
+
 export class AudioManager {
     constructor() {
         this.sounds = {
-            match: new Audio('assets/audio/sfx_pop.wav'),
-            swap: new Audio('assets/audio/sfx_whoosh.wav'),
-            bark: new Audio('assets/audio/sfx_bark.wav'),
-            click: new Audio('assets/audio/sfx_bloop.wav')
+            [SOUND_EFFECT.MATCH]: new Audio('assets/audio/sfx_pop.wav'),
+            [SOUND_EFFECT.SWAP]: new Audio('assets/audio/sfx_whoosh.wav'),
+            [SOUND_EFFECT.BARK]: new Audio('assets/audio/sfx_bark.wav'),
+            [SOUND_EFFECT.CLICK]: new Audio('assets/audio/sfx_bloop.wav'),
+            [SOUND_EFFECT.BOMB]: new Audio('assets/audio/sfx_pop.wav')
         };
         
         this.bgmTracks = {
-            home: new Audio('assets/audio/bgm_home.wav'),
-            game1: new Audio('assets/audio/bgm_game1.wav'),
-            game2: new Audio('assets/audio/bgm_game2.wav')
+            [BGM_TRACK.HOME]: new Audio('assets/audio/bgm_home.wav'),
+            [BGM_TRACK.GAME1]: new Audio('assets/audio/bgm_game1.wav'),
+            [BGM_TRACK.GAME2]: new Audio('assets/audio/bgm_game2.wav')
         };
         
-        this.currentBgm = this.bgmTracks.home;
+        this.currentBgm = this.bgmTracks[BGM_TRACK.HOME];
         
         this.isBgmMuted = false;
         this.isSfxMuted = false;
@@ -34,7 +37,7 @@ export class AudioManager {
         if (this.bgmTracks[trackName]) {
             this.currentBgm = this.bgmTracks[trackName];
             if (!this.isBgmMuted) {
-                this.currentBgm.play().catch(e => console.warn('BGM prevented by browser.'));
+                this.currentBgm.play().catch(() => {});
             }
         }
     }
@@ -45,7 +48,7 @@ export class AudioManager {
         const sound = this.sounds[soundName];
         if (sound) {
             sound.currentTime = 0;
-            sound.play().catch(e => console.warn(`Audio ${soundName} prevented by browser.`));
+            sound.play().catch(() => {});
         }
     }
     
@@ -54,7 +57,7 @@ export class AudioManager {
         if (this.isBgmMuted) {
             if (this.currentBgm) this.currentBgm.pause();
         } else {
-            if (this.currentBgm) this.currentBgm.play().catch(e => console.warn('BGM prevented by browser.'));
+            if (this.currentBgm) this.currentBgm.play().catch(() => {});
         }
     }
     
@@ -62,9 +65,8 @@ export class AudioManager {
         this.isSfxMuted = !enabled;
     }
     
-    // For the global toggle button (legacy)
     toggleMute() {
-        this.setBgmEnabled(this.isBgmMuted); // Toggle it ON if it was OFF
+        this.setBgmEnabled(this.isBgmMuted);
         return this.isBgmMuted;
     }
 }

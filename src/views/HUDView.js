@@ -1,3 +1,5 @@
+import { TILE_TYPE, BOOSTER_TYPE, GAME_MODE } from '../constants.js';
+
 export class HUDView {
     constructor() {
         // HUD Elements
@@ -16,11 +18,13 @@ export class HUDView {
     }
 
     updateHUD(gameState) {
+        if (!gameState) return;
+
         if (this.scoreEl) this.scoreEl.innerText = gameState.session.currentScore.toLocaleString();
         if (this.levelEl) this.levelEl.innerText = gameState.levelData.currentLevel;
         
         const movesLabel = document.getElementById('moves-label');
-        if (gameState.levelData.gameMode === 'time') {
+        if (gameState.levelData.gameMode === GAME_MODE.TIME) {
             if (movesLabel) movesLabel.innerText = "Time ⏳";
             const timeVal = Math.ceil(gameState.session.timeRemaining);
             if (this.movesEl) {
@@ -46,15 +50,15 @@ export class HUDView {
         if (this.collectPanelEl) {
             let html = '';
             const iconMap = {
-                '🎾': 'tennis',
-                '🥩': 'meat',
-                '🦴': 'bone',
-                '🐾': 'paw',
-                '🍗': 'drumstick',
-                '🧀': 'cheese',
-                '👟': 'shoe',
-                '🧶': 'yarn',
-                '🍪': 'cookie'
+                [TILE_TYPE.TENNIS]: 'tennis',
+                [TILE_TYPE.MEAT]: 'meat',
+                [TILE_TYPE.BONE]: 'bone',
+                [TILE_TYPE.PAW]: 'paw',
+                [TILE_TYPE.DRUMSTICK]: 'drumstick',
+                [TILE_TYPE.CHEESE]: 'cheese',
+                [TILE_TYPE.SHOE]: 'shoe',
+                [TILE_TYPE.YARN]: 'yarn',
+                [TILE_TYPE.COOKIE]: 'cookie'
             };
             for (let type in gameState.levelData.objectives) {
                 const target = gameState.levelData.objectives[type];
@@ -66,7 +70,7 @@ export class HUDView {
                 
                 let iconHtml = `<div class="collect-icon-horiz">${type}</div>`;
                 if (iconMap[type]) {
-                    iconHtml = `<div class="collect-icon-horiz"><img src="assets/images/icon_${iconMap[type]}.png" style="width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.3));"></div>`;
+                    iconHtml = `<div class="collect-icon-horiz"><img src="assets/images/icons/icon_${iconMap[type]}.png" alt="${iconMap[type]}" style="width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.3));"></div>`;
                 }
 
                 html += `
@@ -89,13 +93,17 @@ export class HUDView {
 
         // Update Booster UI
         if (gameState.boosters) {
-            if (this.badgeHammer) this.badgeHammer.innerText = gameState.boosters.hammer || 0;
-            if (this.badgeBomb) this.badgeBomb.innerText = gameState.boosters.bomb || 0;
-            if (this.badgeShuffle) this.badgeShuffle.innerText = gameState.boosters.shuffle || 0;
+            if (this.badgeHammer) this.badgeHammer.innerText = gameState.boosters[BOOSTER_TYPE.HAMMER] || 0;
+            if (this.badgeBomb) this.badgeBomb.innerText = gameState.boosters[BOOSTER_TYPE.BOMB] || 0;
+            if (this.badgeShuffle) this.badgeShuffle.innerText = gameState.boosters[BOOSTER_TYPE.SHUFFLE] || 0;
         }
 
         // Highlight active booster
-        if (this.btnHammer) this.btnHammer.style.border = gameState.activeBooster === 'hammer' ? '3px solid #ffeb3b' : '2px solid rgba(255,255,255,0.3)';
-        if (this.btnBomb) this.btnBomb.style.border = gameState.activeBooster === 'bomb' ? '3px solid #ffeb3b' : '2px solid rgba(255,255,255,0.3)';
+        if (this.btnHammer) {
+            this.btnHammer.style.border = gameState.activeBooster === BOOSTER_TYPE.HAMMER ? '3px solid #ffeb3b' : '2px solid rgba(255,255,255,0.3)';
+        }
+        if (this.btnBomb) {
+            this.btnBomb.style.border = gameState.activeBooster === BOOSTER_TYPE.BOMB ? '3px solid #ffeb3b' : '2px solid rgba(255,255,255,0.3)';
+        }
     }
 }

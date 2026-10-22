@@ -1,22 +1,23 @@
 import { IGameRepository } from '../interfaces/IGameRepository.js';
+import { STORAGE_KEY, BOOSTER_TYPE } from '../constants.js';
 
 export class LocalScoreRepository extends IGameRepository {
     saveScore(score) {
-        localStorage.setItem('cottons_kibble_crush_highscore', score);
+        localStorage.setItem(STORAGE_KEY.HIGH_SCORE, score);
     }
 
     loadScore() {
-        return parseInt(localStorage.getItem('cottons_kibble_crush_highscore') || '0');
+        return parseInt(localStorage.getItem(STORAGE_KEY.HIGH_SCORE) || '0');
     }
 
     getUnlockedLevel() {
-        return parseInt(localStorage.getItem('cottons_kibble_crush_unlocked_level') || '1');
+        return parseInt(localStorage.getItem(STORAGE_KEY.UNLOCKED_LEVEL) || '1');
     }
 
     unlockLevel(level) {
         let current = this.getUnlockedLevel();
         if (level > current) {
-            localStorage.setItem('cottons_kibble_crush_unlocked_level', level);
+            localStorage.setItem(STORAGE_KEY.UNLOCKED_LEVEL, level);
         }
     }
 
@@ -37,59 +38,83 @@ export class LocalScoreRepository extends IGameRepository {
             allPlayers.push({ name: "YOU", score: playerScore, isPlayer: true });
         }
         
-        // Sort descending
         allPlayers.sort((a, b) => b.score - a.score);
-        
         return allPlayers;
     }
 
     // --- Currencies & Shop ---
     getCoins() {
-        return parseInt(localStorage.getItem('cottons_kibble_crush_coins') || '500'); // Start with 500 coins!
+        return parseInt(localStorage.getItem(STORAGE_KEY.COINS) || '500');
     }
 
     addCoins(amount) {
         let current = this.getCoins();
-        localStorage.setItem('cottons_kibble_crush_coins', current + amount);
+        localStorage.setItem(STORAGE_KEY.COINS, current + amount);
     }
 
     spendCoins(amount) {
         let current = this.getCoins();
         if (current >= amount) {
-            localStorage.setItem('cottons_kibble_crush_coins', current - amount);
+            localStorage.setItem(STORAGE_KEY.COINS, current - amount);
             return true;
         }
         return false;
     }
 
     getBoosters() {
-        let defaultBoosters = { hammer: 2, bomb: 2, shuffle: 2 };
+        let defaultBoosters = {
+            [BOOSTER_TYPE.HAMMER]: 2,
+            [BOOSTER_TYPE.BOMB]: 2,
+            [BOOSTER_TYPE.SHUFFLE]: 2
+        };
         try {
-            let saved = localStorage.getItem('cottons_kibble_crush_boosters');
+            let saved = localStorage.getItem(STORAGE_KEY.BOOSTERS);
             if (saved) return JSON.parse(saved);
         } catch(e) {}
         return defaultBoosters;
     }
 
     saveBoosters(boosters) {
-        localStorage.setItem('cottons_kibble_crush_boosters', JSON.stringify(boosters));
+        localStorage.setItem(STORAGE_KEY.BOOSTERS, JSON.stringify(boosters));
     }
 
     // --- Daily Rewards ---
     checkDailyReward() {
-        const lastLogin = localStorage.getItem('cottons_kibble_crush_last_login');
+        const lastLogin = localStorage.getItem(STORAGE_KEY.LAST_LOGIN);
         const today = new Date().toDateString();
         return lastLogin !== today;
     }
 
     claimDailyReward() {
         const today = new Date().toDateString();
-        localStorage.setItem('cottons_kibble_crush_last_login', today);
+        localStorage.setItem(STORAGE_KEY.LAST_LOGIN, today);
         
-        // Give 100 coins and 1 Hammer
         this.addCoins(100);
         let boosters = this.getBoosters();
-        boosters.hammer = (boosters.hammer || 0) + 1;
+        boosters[BOOSTER_TYPE.HAMMER] = (boosters[BOOSTER_TYPE.HAMMER] || 0) + 1;
         this.saveBoosters(boosters);
+    }
+
+    // --- Mid-Level Session Persistence ---
+    saveActiveSession(sessionData) {
+        try {
+            localStorage.setItem(STORAGE_KEY.ACTIVE_SESSION, JSON.stringify(sessionData));
+        } catch (e) {
+            console.warn('Failed to save active session', e);
+        }
+    }
+
+    loadActiveSession() {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY.ACTIVE_SESSION);
+            if (raw) return JSON.parse(raw);
+        } catch (e) {
+            console.warn('Failed to parse active session', e);
+        }
+        return null;
+    }
+
+    clearActiveSession() {
+        localStorage.removeItem(STORAGE_KEY.ACTIVE_SESSION);
     }
 }

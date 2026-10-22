@@ -1,4 +1,9 @@
 {
+  "name": "cottons-kibble-crush",
+  "type": "module",
+  "scripts": {
+    "test": "node run_tests_node.js"
+  },
   "dependencies": {
     "jimp": "^0.16.1"
   }

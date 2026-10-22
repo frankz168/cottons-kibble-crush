@@ -5,6 +5,7 @@ import { LocalScoreRepository } from './src/repositories/LocalScoreRepository.js
 import { GameState } from './src/models/GameState.js';
 import { AudioManager } from './src/utils/AudioManager.js';
 import { ParticleSystem } from './src/utils/ParticleSystem.js';
+import { SCREEN, TILE_TYPE, BOOSTER_TYPE, GAME_MODE, SOUND_EFFECT, BGM_TRACK, STORAGE_KEY } from './src/constants.js';
 
 // Setup audio manager
 const audioManager = new AudioManager();
@@ -12,7 +13,8 @@ window.audioManager = audioManager;
 
 window.toggleMute = function() {
     const isMuted = audioManager.toggleMute();
-    document.getElementById('mute-btn').innerText = isMuted ? '🔇' : '🔊';
+    const muteBtn = document.getElementById('mute-btn');
+    if (muteBtn) muteBtn.innerText = isMuted ? '🔇' : '🔊';
 };
 
 // Setup router state and expose to window for inline HTML onclick events
@@ -31,15 +33,26 @@ window.iconImages = {
     yarn: new Image(),
     cookie: new Image()
 };
-window.iconImages.tennis.src = 'assets/images/icon_tennis.png';
-window.iconImages.meat.src = 'assets/images/icon_meat.png';
-window.iconImages.bone.src = 'assets/images/icon_bone.png';
-window.iconImages.paw.src = 'assets/images/icon_paw.png';
-window.iconImages.drumstick.src = 'assets/images/icon_drumstick.png';
-window.iconImages.cheese.src = 'assets/images/icon_cheese.png';
-window.iconImages.shoe.src = 'assets/images/icon_shoe.png';
-window.iconImages.yarn.src = 'assets/images/icon_yarn.png';
-window.iconImages.cookie.src = 'assets/images/icon_cookie.png';
+const iconEntries = {
+    tennis:    'assets/images/icons/icon_tennis.png',
+    meat:      'assets/images/icons/icon_meat.png',
+    bone:      'assets/images/icons/icon_bone.png',
+    paw:       'assets/images/icons/icon_paw.png',
+    drumstick: 'assets/images/icons/icon_drumstick.png',
+    cheese:    'assets/images/icons/icon_cheese.png',
+    shoe:      'assets/images/icons/icon_shoe.png',
+    yarn:      'assets/images/icons/icon_yarn.png',
+    cookie:    'assets/images/icons/icon_cookie.png'
+};
+
+Object.entries(iconEntries).forEach(([key, src]) => {
+    const img = new Image();
+    img.onload = () => {
+        if (window._canvasRenderer) window._canvasRenderer.drawGame(window._lastGrid, null);
+    };
+    img.src = src;
+    window.iconImages[key] = img;
+});
 
 document.addEventListener('DOMContentLoaded', () => {
     const view = new GameView('gameCanvas', 'score');
@@ -47,6 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const repository = new LocalScoreRepository();
     window.repository = repository;
     const controller = new GameController(model, view, repository);
+    window.gameController = controller;
 
     // Provide game state to controller so it can interact with scores and objectives
     controller.gameState = gameState;
@@ -67,22 +81,29 @@ document.addEventListener('DOMContentLoaded', () => {
     
     window.claimDailyReward = function() {
         repository.claimDailyReward();
-        document.getElementById('daily-reward-overlay').style.display = 'none';
-        if (window.audioManager) window.audioManager.play('click');
+        const rewardOverlay = document.getElementById('daily-reward-overlay');
+        if (rewardOverlay) rewardOverlay.style.display = 'none';
+        if (window.audioManager) window.audioManager.play(SOUND_EFFECT.CLICK);
         if (window.particleSystem) {
-            window.particleSystem.spawnExplosion(window.innerWidth / 2, window.innerHeight / 2, '🎉');
+            window.particleSystem.spawnExplosion(window.innerWidth / 2, window.innerHeight / 2, '🎉', 10);
         }
     };
 
     window.startLevel = function(levelNumber, config) {
         gameState.startLevel(levelNumber, config);
         
-        // Pass the types to the GameModel so it spawns the correct ones
-        // Usually Match-3 games have 5-6 types on board, so we use objectives + fillers
-        let availableTypes = Object.keys(config.objectives);
-        let allTypes = ['🦴', '🍪', '🥩', '🎾', '🍗', '🧀', '👟', '🧶'];
+        let availableTypes = Object.keys(config.objectives || {});
+        let allTypes = [
+            TILE_TYPE.BONE,
+            TILE_TYPE.COOKIE,
+            TILE_TYPE.MEAT,
+            TILE_TYPE.TENNIS,
+            TILE_TYPE.DRUMSTICK,
+            TILE_TYPE.CHEESE,
+            TILE_TYPE.SHOE,
+            TILE_TYPE.YARN
+        ];
         let fillerIdx = 0;
-        // Target 5 types for Level 1-4, 6 types for Level 5-14, 7 types for Level 15+
         let targetBoardTypes = 5;
         if (levelNumber >= 5) targetBoardTypes = 6;
         if (levelNumber >= 15) targetBoardTypes = 7;
@@ -96,9 +117,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         controller.model.initGrid(availableTypes, config.frozenCount || 0, config.catCount || 0);
         controller.view.updateHUD(gameState);
+        controller.persistCurrentSession();
         
-        // Randomly pick a game BGM
-        const bgmName = Math.random() > 0.5 ? 'game1' : 'game2';
+        const bgmName = Math.random() > 0.5 ? BGM_TRACK.GAME1 : BGM_TRACK.GAME2;
         audioManager.playBGM(bgmName);
     };
 
@@ -106,7 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const grid = document.querySelector('.level-grid') || document.querySelector('.level-path');
         if (!grid) return;
         
-        grid.className = 'level-path'; // ensure it's a path
+        grid.className = 'level-path';
         
         const unlocked = repository.getUnlockedLevel();
         const maxLevels = 50;
@@ -115,10 +136,9 @@ document.addEventListener('DOMContentLoaded', () => {
         grid.style.position = 'relative';
         grid.style.height = `${maxLevels * levelHeight + 100}px`;
         grid.style.width = '100%';
-        grid.style.display = 'block'; // override flex
+        grid.style.display = 'block';
         grid.style.flexShrink = '0';
         
-        // Zone 1: Grass (Level 1-20), Zone 2: Snow (Level 21-40), Zone 3: Volcano/Space (Level 41-50)
         let zone1Height = 20 * levelHeight + 100;
         let zone2Height = 40 * levelHeight + 100;
         grid.style.background = `linear-gradient(to top, 
@@ -137,7 +157,6 @@ document.addEventListener('DOMContentLoaded', () => {
         let latestY = 0;
         
         for (let i = 1; i <= maxLevels; i++) {
-            // S-curve offset
             let offsetX = Math.sin(i * 0.8) * 100; 
             let bottomY = (i * levelHeight) + 50;
             
@@ -162,14 +181,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         
-        // Add Cotton Avatar at unlocked level
         if (unlocked <= maxLevels) {
-            html += `<div id="map-avatar" style="position: absolute; bottom: ${latestY + 45}px; left: calc(50% + ${latestX}px); transform: translateX(-50%); width: 60px; height: 60px; background-image: url('assets/images/dog_new.jpg'); background-position: center; background-size: cover; border-radius: 50%; border: 3px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.5); z-index: 10; animation: bounce 1s infinite alternate;"></div>`;
+            html += `<div id="map-avatar" style="position: absolute; bottom: ${latestY + 45}px; left: calc(50% + ${latestX}px); transform: translateX(-50%); width: 60px; height: 60px; background-image: url('assets/images/avatar/dog_new.jpg'); background-position: center; background-size: cover; border-radius: 50%; border: 3px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.5); z-index: 10; animation: bounce 1s infinite alternate;"></div>`;
         }
         
         grid.innerHTML = html;
         
-        // Scroll to the latest unlocked level automatically
         setTimeout(() => {
             const avatar = document.getElementById('map-avatar');
             if (avatar) {
@@ -179,22 +196,28 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     
     window.generateLevelConfig = function(level) {
-        // Base values
         let baseMoves = 15;
         let baseTargetPerObj = 10;
         
-        // Pseudo-random generator for consistent level objectives
         let seed = level * 12345;
         let random = () => {
             seed = (seed * 9301 + 49297) % 233280;
             return seed / 233280;
         };
         
-        let allItems = ['🦴', '🍪', '🥩', '🎾', '🍗', '🧀', '👟', '🧶'];
+        let allItems = [
+            TILE_TYPE.BONE,
+            TILE_TYPE.COOKIE,
+            TILE_TYPE.MEAT,
+            TILE_TYPE.TENNIS,
+            TILE_TYPE.DRUMSTICK,
+            TILE_TYPE.CHEESE,
+            TILE_TYPE.SHOE,
+            TILE_TYPE.YARN
+        ];
         let shuffledItems = [...allItems].sort(() => random() - 0.5);
         
-        // Increase difficulty based on level
-        let moves = baseMoves + Math.floor(level * 0.8); // +4 moves every 5 levels
+        let moves = baseMoves + Math.floor(level * 0.8);
         let targetScore = 1000 + (level * 300);
         
         let objectives = {};
@@ -203,11 +226,11 @@ document.addEventListener('DOMContentLoaded', () => {
         let numObjectives = 2;
         if (level >= 5) {
             numObjectives = 3;
-            moves += 2; // Bonus moves for 3rd objective
+            moves += 2;
         }
         if (level >= 15) {
             numObjectives = 4;
-            moves += 3; // Bonus moves for 4th objective
+            moves += 3;
         }
         
         for (let i = 0; i < numObjectives; i++) {
@@ -219,28 +242,26 @@ document.addEventListener('DOMContentLoaded', () => {
         
         let frozenCount = 0;
         let catCount = 0;
-        let gameMode = 'moves';
+        let gameMode = GAME_MODE.MOVES;
         let timeLimit = 0;
         
         if (level % 5 === 0) {
-            gameMode = 'time';
-            timeLimit = 290 + Math.floor(level * 2); // Base 290s (Level 5 will be exactly 300s)
+            gameMode = GAME_MODE.TIME;
+            timeLimit = 290 + Math.floor(level * 2);
         } else {
             if (level >= 20) {
-                frozenCount = 3 + Math.floor((level - 20) / 2); // Scales up every 2 levels
+                frozenCount = 3 + Math.floor((level - 20) / 2);
                 if (level >= 22) catCount = 1;
                 if (level >= 35) catCount = 2;
             }
         }
         
-        // Ensure valid string representation for inline HTML
         return `{targetScore: ${targetScore}, maxMoves: ${moves}, objectives: ${JSON.stringify(objectives).replace(/"/g, "'")}, frozenCount: ${frozenCount}, gameMode: '${gameMode}', timeLimit: ${timeLimit}, catCount: ${catCount}}`;
     };
     
     window.playHighestLevel = function() {
         const unlocked = repository.getUnlockedLevel();
         const configStr = window.generateLevelConfig(unlocked);
-        // We need to parse it back from the stringified format used in HTML
         const configObj = eval('(' + configStr + ')');
         window.startLevel(unlocked, configObj);
     };
@@ -283,9 +304,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const bombEl = document.getElementById('shop-owned-bomb');
         const shuffleEl = document.getElementById('shop-owned-shuffle');
         
-        if (hammerEl) hammerEl.innerText = boosters.hammer;
-        if (bombEl) bombEl.innerText = boosters.bomb;
-        if (shuffleEl) shuffleEl.innerText = boosters.shuffle;
+        if (hammerEl) hammerEl.innerText = boosters[BOOSTER_TYPE.HAMMER] || 0;
+        if (bombEl) bombEl.innerText = boosters[BOOSTER_TYPE.BOMB] || 0;
+        if (shuffleEl) shuffleEl.innerText = boosters[BOOSTER_TYPE.SHUFFLE] || 0;
     };
     
     window.buyBooster = function(type, price) {
@@ -295,13 +316,11 @@ document.addEventListener('DOMContentLoaded', () => {
             boosters[type]++;
             repository.saveBoosters(boosters);
             window.renderShop();
-            if (audioManager) audioManager.play('click');
+            if (audioManager) audioManager.play(SOUND_EFFECT.CLICK);
             
-            // Also update live GameState if active
             gameState.boosters = boosters;
             if (controller && controller.view) controller.view.updateHUD(gameState);
         } else {
-            // Not enough coins
             window.showCustomAlert("Oops!", "Not enough coins! 😢");
         }
     };
@@ -310,25 +329,25 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('custom-alert-title').innerText = title;
         document.getElementById('custom-alert-msg').innerText = msg;
         document.getElementById('custom-alert-overlay').style.display = 'flex';
-        if (window.audioManager) window.audioManager.play('click');
+        if (window.audioManager) window.audioManager.play(SOUND_EFFECT.CLICK);
     };
 
     // When screen changes, trigger updates
     gameState.onScreenChange = (screen) => {
-        if (screen === 'screen-leaderboard') {
+        if (screen === SCREEN.LEADERBOARD) {
             window.renderLeaderboard();
         }
         
-        if (screen === 'screen-levels') {
+        if (screen === SCREEN.LEVELS) {
             window.renderLevels();
         }
         
-        if (screen === 'screen-shop') {
+        if (screen === SCREEN.SHOP) {
             window.renderShop();
         }
         
-        if (screen === 'screen-home' || screen === 'screen-levels' || screen === 'screen-shop') {
-            audioManager.playBGM('home');
+        if (screen === SCREEN.HOME || screen === SCREEN.LEVELS || screen === SCREEN.SHOP) {
+            audioManager.playBGM(BGM_TRACK.HOME);
         }
     };
 
@@ -349,28 +368,26 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     
     window.setLanguage = function(lang) {
-        localStorage.setItem('cotton_lang', lang);
+        localStorage.setItem(STORAGE_KEY.LANG, lang);
         
-        // Update styling
         document.getElementById('lang-en').style.background = lang === 'en' ? '#5ef54c' : 'white';
         document.getElementById('lang-en').style.color = lang === 'en' ? 'white' : '#555';
         document.getElementById('lang-id').style.background = lang === 'id' ? '#5ef54c' : 'white';
         document.getElementById('lang-id').style.color = lang === 'id' ? 'white' : '#555';
         
-        // Update UI text
         document.querySelectorAll('[data-i18n]').forEach(el => {
             const key = el.getAttribute('data-i18n');
-            if (dict[lang][key]) el.innerText = dict[lang][key];
+            if (dict[lang] && dict[lang][key]) el.innerText = dict[lang][key];
         });
     };
     
     window.toggleSetting = function(type, isEnabled) {
         if (type === 'bgm') {
             audioManager.setBgmEnabled(isEnabled);
-            localStorage.setItem('cotton_bgm', isEnabled);
+            localStorage.setItem(STORAGE_KEY.BGM, isEnabled);
         } else if (type === 'sfx') {
             audioManager.setSfxEnabled(isEnabled);
-            localStorage.setItem('cotton_sfx', isEnabled);
+            localStorage.setItem(STORAGE_KEY.SFX, isEnabled);
         }
     };
     
@@ -378,24 +395,25 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('custom-confirm-title').innerText = title;
         document.getElementById('custom-confirm-msg').innerText = msg;
         document.getElementById('custom-confirm-overlay').style.display = 'flex';
-        if (window.audioManager) window.audioManager.play('click');
+        if (window.audioManager) window.audioManager.play(SOUND_EFFECT.CLICK);
         
         document.getElementById('custom-confirm-yes').onclick = function() {
             document.getElementById('custom-confirm-overlay').style.display = 'none';
-            if (window.audioManager) window.audioManager.play('click');
+            if (window.audioManager) window.audioManager.play(SOUND_EFFECT.CLICK);
             onYes();
         };
         
         document.getElementById('custom-confirm-no').onclick = function() {
             document.getElementById('custom-confirm-overlay').style.display = 'none';
-            if (window.audioManager) window.audioManager.play('click');
+            if (window.audioManager) window.audioManager.play(SOUND_EFFECT.CLICK);
         };
     };
 
     window.resetProgress = function() {
         window.showCustomConfirm("Warning", "Are you sure you want to erase all your progress?", () => {
-            localStorage.removeItem('cottonHighScore');
-            localStorage.removeItem('cottonUnlockedLevel');
+            localStorage.removeItem(STORAGE_KEY.HIGH_SCORE);
+            localStorage.removeItem(STORAGE_KEY.UNLOCKED_LEVEL);
+            repository.clearActiveSession();
             window.showCustomAlert("Success", "Progress reset!");
             setTimeout(() => location.reload(), 1500);
         });
@@ -406,11 +424,11 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     
     // Init settings
-    const savedLang = localStorage.getItem('cotton_lang') || 'en';
+    const savedLang = localStorage.getItem(STORAGE_KEY.LANG) || 'en';
     window.setLanguage(savedLang);
     
-    const bgmEnabled = localStorage.getItem('cotton_bgm') !== 'false'; // default true
-    const sfxEnabled = localStorage.getItem('cotton_sfx') !== 'false';
+    const bgmEnabled = localStorage.getItem(STORAGE_KEY.BGM) !== 'false';
+    const sfxEnabled = localStorage.getItem(STORAGE_KEY.SFX) !== 'false';
     
     document.getElementById('toggle-bgm').checked = bgmEnabled;
     document.getElementById('toggle-sfx').checked = sfxEnabled;
@@ -422,6 +440,10 @@ document.addEventListener('DOMContentLoaded', () => {
     controller.start();
     window.renderLevels();
     
-    // Boot up into home screen by default
-    gameState.switchScreen('screen-home');
+    // Resume session if player reloaded during a level
+    const hasResumed = controller.restoreActiveSession();
+    if (!hasResumed) {
+        // Boot up into home screen by default
+        gameState.switchScreen(SCREEN.HOME);
+    }
 });

@@ -1,5 +1,5 @@
 import { Tile } from './Tile.js';
-import { ROWS, COLS, TYPES, STATE } from '../constants.js';
+import { ROWS, COLS, TYPES, STATE, TILE_TYPE, SPECIAL_TYPE, DIRECTION, SOUND_EFFECT } from '../constants.js';
 
 export class GameModel {
     constructor(tileSize) {
@@ -11,18 +11,21 @@ export class GameModel {
     }
 
     initGrid(availableTypes = TYPES, frozenCount = 0, catCount = 0) {
-        this.availableTypes = availableTypes;
+        this.availableTypes = availableTypes && availableTypes.length >= 3 ? availableTypes : TYPES;
         this.grid = Array.from({ length: COLS }, () => new Array(ROWS).fill(null));
         let allTiles = [];
         
         for (let c = 0; c < COLS; c++) {
             for (let r = 0; r < ROWS; r++) {
                 let type;
+                let attempts = 0;
                 do {
                     type = this.availableTypes[Math.floor(Math.random() * this.availableTypes.length)];
+                    attempts++;
                 } while (
-                    (c >= 2 && this.grid[c-1][r].type === type && this.grid[c-2][r].type === type) ||
-                    (r >= 2 && this.grid[c][r-1].type === type && this.grid[c][r-2].type === type)
+                    attempts < 60 &&
+                    ((c >= 2 && this.grid[c - 1][r].type === type && this.grid[c - 2][r].type === type) ||
+                    (r >= 2 && this.grid[c][r - 1].type === type && this.grid[c][r - 2].type === type))
                 );
                 this.grid[c][r] = new Tile(c, r, type, this.tileSize);
                 allTiles.push(this.grid[c][r]);
@@ -33,7 +36,7 @@ export class GameModel {
         
         // Spawn cats
         for (let i = 0; i < Math.min(catCount, allTiles.length); i++) {
-            allTiles[i].type = '🐈';
+            allTiles[i].type = TILE_TYPE.CAT;
             allTiles[i].isCat = true;
         }
         
@@ -44,6 +47,43 @@ export class GameModel {
                 freezable[i].isFrozen = true;
             }
         }
+    }
+
+    serializeGrid() {
+        let serialized = [];
+        for (let c = 0; c < COLS; c++) {
+            for (let r = 0; r < ROWS; r++) {
+                const t = this.grid[c][r];
+                if (t) {
+                    serialized.push({
+                        c: t.c,
+                        r: t.r,
+                        type: t.type,
+                        isFrozen: Boolean(t.isFrozen),
+                        isCat: Boolean(t.isCat),
+                        special: t.special || null,
+                        moveCount: t.moveCount || 0
+                    });
+                }
+            }
+        }
+        return serialized;
+    }
+
+    deserializeGrid(savedGrid) {
+        if (!Array.isArray(savedGrid) || savedGrid.length === 0) return false;
+        this.grid = Array.from({ length: COLS }, () => new Array(ROWS).fill(null));
+        savedGrid.forEach(data => {
+            if (data.c >= 0 && data.c < COLS && data.r >= 0 && data.r < ROWS) {
+                const tile = new Tile(data.c, data.r, data.type, this.tileSize);
+                tile.isFrozen = data.isFrozen;
+                tile.isCat = data.isCat;
+                tile.special = data.special;
+                tile.moveCount = data.moveCount || 0;
+                this.grid[data.c][data.r] = tile;
+            }
+        });
+        return true;
     }
 
     findMatches() {
@@ -108,16 +148,16 @@ export class GameModel {
                 
                 allMatches.push({
                     tiles: Array.from(groupTiles),
-                    shape: isLine5 ? 'rainbow' : 'bomb',
+                    shape: isLine5 ? SPECIAL_TYPE.RAINBOW : SPECIAL_TYPE.BOMB,
                     centerTile: intersectionTile
                 });
             } else {
                 if (hLine.length >= 5) {
-                    allMatches.push({ tiles: hLine, shape: 'rainbow', centerTile: hLine[2] });
+                    allMatches.push({ tiles: hLine, shape: SPECIAL_TYPE.RAINBOW, centerTile: hLine[2] });
                 } else if (hLine.length === 4) {
-                    allMatches.push({ tiles: hLine, shape: 'striped-v', centerTile: hLine[1] });
+                    allMatches.push({ tiles: hLine, shape: SPECIAL_TYPE.STRIPED_V, centerTile: hLine[1] });
                 } else {
-                    allMatches.push({ tiles: hLine, shape: 'normal', centerTile: null });
+                    allMatches.push({ tiles: hLine, shape: SPECIAL_TYPE.NORMAL, centerTile: null });
                 }
             }
         }
@@ -125,11 +165,11 @@ export class GameModel {
         for (let vLine of vLines) {
             if (!processedLines.has(vLine)) {
                 if (vLine.length >= 5) {
-                    allMatches.push({ tiles: vLine, shape: 'rainbow', centerTile: vLine[2] });
+                    allMatches.push({ tiles: vLine, shape: SPECIAL_TYPE.RAINBOW, centerTile: vLine[2] });
                 } else if (vLine.length === 4) {
-                    allMatches.push({ tiles: vLine, shape: 'striped-h', centerTile: vLine[1] });
+                    allMatches.push({ tiles: vLine, shape: SPECIAL_TYPE.STRIPED_H, centerTile: vLine[1] });
                 } else {
-                    allMatches.push({ tiles: vLine, shape: 'normal', centerTile: null });
+                    allMatches.push({ tiles: vLine, shape: SPECIAL_TYPE.NORMAL, centerTile: null });
                 }
             }
         }
@@ -141,7 +181,7 @@ export class GameModel {
         let transformSet = new Map();
         
         matchGroups.forEach(group => {
-            if (group.shape !== 'normal' && group.centerTile) {
+            if (group.shape !== SPECIAL_TYPE.NORMAL && group.centerTile) {
                 transformSet.set(group.centerTile, group.shape);
             }
         });
@@ -159,7 +199,7 @@ export class GameModel {
         let scoreGained = 0;
         
         if (toDestroyQueue.length > 0) {
-            if (window.audioManager) window.audioManager.play('match');
+            if (window.audioManager) window.audioManager.play(SOUND_EFFECT.MATCH);
         }
         
         while (toDestroyQueue.length > 0) {
@@ -178,8 +218,8 @@ export class GameModel {
                     if (neighbor) {
                         if (neighbor.isFrozen) {
                             neighbor.isFrozen = false;
-                            if (window.audioManager) window.audioManager.play('match'); // small feedback
-                            if (window.particleSystem) window.particleSystem.spawnExplosion(neighbor.pixelX + this.tileSize/2, neighbor.pixelY + this.tileSize/2, '❄️');
+                            if (window.audioManager) window.audioManager.play(SOUND_EFFECT.MATCH);
+                            if (window.particleSystem) window.particleSystem.spawnExplosion(neighbor.pixelX + this.tileSize/2, neighbor.pixelY + this.tileSize/2, '❄️', 4);
                         }
                         if (neighbor.isCat && !neighbor.matched) {
                             neighbor.matched = true;
@@ -194,7 +234,7 @@ export class GameModel {
                             scoreGained += 1000;
                             
                             if (window.particleSystem) {
-                                window.particleSystem.spawnExplosion(neighbor.pixelX + this.tileSize/2, neighbor.pixelY + this.tileSize/2, '🎉', 20);
+                                window.particleSystem.spawnExplosion(neighbor.pixelX + this.tileSize/2, neighbor.pixelY + this.tileSize/2, '🎉', 10);
                                 window.particleSystem.spawnText(neighbor.pixelX + this.tileSize/2, neighbor.pixelY + this.tileSize/2, 'CAUGHT!');
                             }
                         }
@@ -210,12 +250,17 @@ export class GameModel {
             if (window.particleSystem) {
                 const centerX = t.pixelX + t.tileSize / 2;
                 const centerY = t.pixelY + t.tileSize / 2;
-                const typeColors = {'🦴': '#f5f5dc', '🍪': '#d2691e', '🐾': '#8b4513', '🥩': '#ff4500'};
-                window.particleSystem.spawnExplosion(centerX, centerY, typeColors[t.type] || '#fff', 5);
+                const typeColors = {
+                    [TILE_TYPE.BONE]: '#f5f5dc',
+                    [TILE_TYPE.COOKIE]: '#d2691e',
+                    [TILE_TYPE.PAW]: '#8b4513',
+                    [TILE_TYPE.MEAT]: '#ff4500'
+                };
+                window.particleSystem.spawnExplosion(centerX, centerY, typeColors[t.type] || '#fff', 4);
                 window.particleSystem.spawnText(centerX, centerY, `+${10 * comboMultiplier}`);
             }
             
-            if (t.special === 'striped-v') {
+            if (t.special === SPECIAL_TYPE.STRIPED_V) {
                 for (let r = 0; r < ROWS; r++) {
                     let st = this.grid[t.c][r];
                     if (st && !st.matched && !transformSet.has(st)) {
@@ -223,8 +268,8 @@ export class GameModel {
                         toDestroyQueue.push(st);
                     }
                 }
-                if (window.particleSystem) window.particleSystem.spawnLaser(t.pixelX + t.tileSize/2, t.pixelY + t.tileSize/2, 'vertical', '#ffeb3b');
-            } else if (t.special === 'striped-h') {
+                if (window.particleSystem) window.particleSystem.spawnLaser(t.pixelX + t.tileSize/2, t.pixelY + t.tileSize/2, DIRECTION.VERTICAL, '#ffeb3b');
+            } else if (t.special === SPECIAL_TYPE.STRIPED_H) {
                 for (let c = 0; c < COLS; c++) {
                     let st = this.grid[c][t.r];
                     if (st && !st.matched && !transformSet.has(st)) {
@@ -232,8 +277,8 @@ export class GameModel {
                         toDestroyQueue.push(st);
                     }
                 }
-                if (window.particleSystem) window.particleSystem.spawnLaser(t.pixelX + t.tileSize/2, t.pixelY + t.tileSize/2, 'horizontal', '#ffeb3b');
-            } else if (t.special === 'bomb') {
+                if (window.particleSystem) window.particleSystem.spawnLaser(t.pixelX + t.tileSize/2, t.pixelY + t.tileSize/2, DIRECTION.HORIZONTAL, '#ffeb3b');
+            } else if (t.special === SPECIAL_TYPE.BOMB) {
                 for (let c = Math.max(0, t.c - 1); c <= Math.min(COLS-1, t.c + 1); c++) {
                     for (let r = Math.max(0, t.r - 1); r <= Math.min(ROWS-1, t.r + 1); r++) {
                         let st = this.grid[c][r];
@@ -243,9 +288,9 @@ export class GameModel {
                         }
                     }
                 }
-                if (window.particleSystem) window.particleSystem.spawnExplosion(t.pixelX + t.tileSize/2, t.pixelY + t.tileSize/2, '#ff4500', 30);
-            } else if (t.special === 'rainbow-blast' || t.special === 'rainbow' || t.type === '🌈') {
-                let targetType = t.targetType || ['🦴', '🍪', '🐾', '🥩'][Math.floor(Math.random() * 4)];
+                if (window.particleSystem) window.particleSystem.spawnExplosion(t.pixelX + t.tileSize/2, t.pixelY + t.tileSize/2, '#ff4500', 12);
+            } else if (t.special === SPECIAL_TYPE.RAINBOW_BLAST || t.special === SPECIAL_TYPE.RAINBOW || t.type === TILE_TYPE.RAINBOW) {
+                let targetType = t.targetType || [TILE_TYPE.BONE, TILE_TYPE.COOKIE, TILE_TYPE.PAW, TILE_TYPE.MEAT][Math.floor(Math.random() * 4)];
                 for (let c = 0; c < COLS; c++) {
                     for (let r = 0; r < ROWS; r++) {
                         let st = this.grid[c][r];
@@ -255,13 +300,13 @@ export class GameModel {
                         }
                     }
                 }
-                if (window.particleSystem) window.particleSystem.spawnExplosion(t.pixelX + t.tileSize/2, t.pixelY + t.tileSize/2, '#ffffff', 50);
+                if (window.particleSystem) window.particleSystem.spawnExplosion(t.pixelX + t.tileSize/2, t.pixelY + t.tileSize/2, '#ffffff', 16);
             }
         }
         
         for (let [t, special] of transformSet.entries()) {
             t.special = special;
-            if (special === 'rainbow') t.type = '🌈';
+            if (special === SPECIAL_TYPE.RAINBOW) t.type = TILE_TYPE.RAINBOW;
             t.matched = false;
         }
 
@@ -279,8 +324,6 @@ export class GameModel {
                     this.grid[c][r] = null;
                 } else if (this.grid[c][r]) {
                     if (this.grid[c][r].isFrozen) {
-                        // Ice blocker! Doesn't fall.
-                        // Instantly spawn tiles to fill the empty spaces BELOW this ice block
                         for (let k = 1; k <= emptySpots; k++) {
                             let fillR = r + k;
                             let type = this.availableTypes[Math.floor(Math.random() * this.availableTypes.length)];
@@ -289,9 +332,8 @@ export class GameModel {
                             newTile.scale = 0.5;
                             this.grid[c][fillR] = newTile;
                         }
-                        emptySpots = 0; // Reset empty spots because ice blocks tiles above from falling through
+                        emptySpots = 0;
                     } else if (emptySpots > 0) {
-                        // Move tile down
                         this.grid[c][r + emptySpots] = this.grid[c][r];
                         this.grid[c][r] = null;
                         this.grid[c][r + emptySpots].r = r + emptySpots;
@@ -305,7 +347,7 @@ export class GameModel {
                 let type = this.availableTypes[Math.floor(Math.random() * this.availableTypes.length)];
                 let newTile = new Tile(c, r, type, this.tileSize);
                 newTile.pixelY = (r - emptySpots - 1) * this.tileSize; 
-                newTile.scale = 0.5; // Starts small, pops in
+                newTile.scale = 0.5;
                 this.grid[c][r] = newTile;
             }
         }
@@ -330,8 +372,8 @@ export class GameModel {
 
     useHammer(c, r, gameState) {
         if (this.grid[c][r]) {
-            this.removeMatches([{ tiles: [this.grid[c][r]], shape: 'normal' }], gameState);
-            if (window.audioManager) window.audioManager.play('match');
+            this.removeMatches([{ tiles: [this.grid[c][r]], shape: SPECIAL_TYPE.NORMAL }], gameState);
+            if (window.audioManager) window.audioManager.play(SOUND_EFFECT.MATCH);
         }
     }
 
@@ -345,8 +387,8 @@ export class GameModel {
             }
         }
         if (targets.length > 0) {
-            this.removeMatches([{ tiles: targets, shape: 'normal' }], gameState);
-            if (window.audioManager) window.audioManager.play('match');
+            this.removeMatches([{ tiles: targets, shape: SPECIAL_TYPE.NORMAL }], gameState);
+            if (window.audioManager) window.audioManager.play(SOUND_EFFECT.MATCH);
         }
     }
 
@@ -369,7 +411,7 @@ export class GameModel {
                 }
             }
         }
-        if (window.audioManager) window.audioManager.play('swap');
+        if (window.audioManager) window.audioManager.play(SOUND_EFFECT.SWAP);
     }
 
     moveCats() {
@@ -398,13 +440,12 @@ export class GameModel {
                 
                 let currentMoves = cat.moveCount || 0;
                 
-                // Directly swap properties to avoid animation queue conflict if we are during match
                 let tempType = cat.type;
                 let tempCat = cat.isCat;
                 
                 cat.type = target.type;
                 cat.isCat = target.isCat;
-                cat.moveCount = 0; // reset old tile
+                cat.moveCount = 0;
                 
                 target.type = tempType;
                 target.isCat = tempCat;
@@ -417,9 +458,9 @@ export class GameModel {
                         if (coins >= 10) {
                             window.repository.spendCoins(10);
                             if (window.particleSystem) {
-                                window.particleSystem.spawnText(target.pixelX + this.tileSize/2, target.pixelY + this.tileSize/2, '-10 💰', '#ff0000');
+                                window.particleSystem.spawnText(target.pixelX + this.tileSize/2, target.pixelY + this.tileSize/2, '-10 💰');
                             }
-                            if (window.renderShop) window.renderShop(); // Update shop UI if open
+                            if (window.renderShop) window.renderShop();
                         }
                     }
                 }

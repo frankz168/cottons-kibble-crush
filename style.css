@@ -30,7 +30,7 @@ body::before {
     content: "";
     position: fixed;
     top: -5%; left: -5%; right: -5%; bottom: -5%;
-    background: url('assets/images/bg_dogs.jpeg') no-repeat center bottom;
+    background: url('assets/images/backgrounds/bg_dogs.jpeg') no-repeat center bottom;
     background-size: cover;
     z-index: -1;
 }
@@ -101,7 +101,7 @@ body::before {
     width: 140px;
     height: 140px;
     border-radius: 50%;
-    background: url('assets/images/dog_new.jpg') no-repeat center center;
+    background: url('assets/images/avatar/dog_new.jpg') no-repeat center center;
     background-size: 120%;
     border: 4px solid white;
     box-shadow: 0 10px 15px rgba(0,0,0,0.3);
@@ -156,12 +156,27 @@ body::before {
     display: flex;
     justify-content: center;
     align-items: center;
+    touch-action: none;
+    overscroll-behavior: none;
 }
 
 canvas {
     width: 100%;
     height: 100%;
     border-radius: 8px;
+    touch-action: none;
+    overscroll-behavior: none;
+}
+
+#screen-game,
+.board-wrapper,
+#gameCanvas,
+#fxCanvas {
+    touch-action: none;
+    overscroll-behavior: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
 }
 
 .collect-panel {
@@ -629,7 +644,7 @@ input:checked + .slider:before {
 
 
 #screen-levels {
-    background: url('assets/level_select_bg_full.jpg') no-repeat center bottom;
+    background: url('assets/images/level_select/level_select_bg_full.jpg') no-repeat center bottom;
     background-size: cover;
     background-attachment: local;
     position: relative;
@@ -653,3 +668,43 @@ input:checked + .slider:before {
     z-index: 0;
 }
 
+
+/* ===== RESPONSIVE: Small screens (iPhone SE 3, 375x667) ===== */
+@media screen and (max-height: 700px) {
+    .dog-character {
+        width: 70px !important;
+        height: 70px !important;
+    }
+    header.top-bar-new {
+        margin-top: 5px !important;
+        gap: 8px !important;
+    }
+    #collect-panel {
+        margin-top: 6px !important;
+        padding: 4px 12px !important;
+        gap: 12px !important;
+    }
+    .powerup-btn-horiz {
+        width: 44px !important;
+        height: 44px !important;
+        font-size: 1.2rem !important;
+    }
+    .powerups-container-horiz {
+        padding: 6px 14px !important;
+        gap: 10px !important;
+    }
+    .main-content {
+        gap: 6px !important;
+        margin-top: 6px !important;
+    }
+}
+
+@media screen and (max-height: 580px) {
+    .dog-character {
+        width: 55px !important;
+        height: 55px !important;
+    }
+    #collect-panel {
+        display: none !important;
+    }
+}
