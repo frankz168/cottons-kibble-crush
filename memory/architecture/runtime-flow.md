@@ -20,7 +20,8 @@ The application runs on a continuous `requestAnimationFrame` loop initiated by `
 - **`WIN_ANIMATION`**: When all level objectives are met and moves/time remain, triggers sugar crush bonus lasers before showing the Game Over overlay.
 
 ## State Recovery Flow
-On application boot:
-1. `controller.restoreActiveSession()` inspects `LocalScoreRepository.loadActiveSession()`.
-2. If a valid mid-level session exists, it restores `GameState` and deserializes the exact grid into `GameModel`, resuming the player directly in `screen-game` with matching score, moves, and goals.
-3. If no active session exists, it navigates to `screen-home`.
+On application boot / browser refresh:
+1. The application always boots into `screen-home` (`SCREEN.HOME`), welcoming the player with the Title Screen and "PLAY" / "OPTIONS" buttons.
+2. Active mid-level session recovery occurs when the player selects and begins a level via `window.startLevel(levelNumber, config)`.
+3. If an active session matching `levelNumber` exists in `LocalScoreRepository`, `controller.restoreActiveSession()` restores `GameState` and deserializes the grid into `GameModel`, resuming the player seamlessly with their saved score, remaining moves, and objectives.
+4. If no active session exists (or a different level is selected), a fresh grid is initialized.

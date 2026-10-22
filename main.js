@@ -90,6 +90,17 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.startLevel = function(levelNumber, config) {
+        // Resume saved session for this level if present
+        const saved = repository.loadActiveSession();
+        if (saved && saved.levelData && saved.levelData.currentLevel === levelNumber && saved.grid) {
+            const resumed = controller.restoreActiveSession();
+            if (resumed) {
+                const bgmName = Math.random() > 0.5 ? BGM_TRACK.GAME1 : BGM_TRACK.GAME2;
+                audioManager.playBGM(bgmName);
+                return;
+            }
+        }
+
         gameState.startLevel(levelNumber, config);
         
         let availableTypes = Object.keys(config.objectives || {});
@@ -440,10 +451,6 @@ document.addEventListener('DOMContentLoaded', () => {
     controller.start();
     window.renderLevels();
     
-    // Resume session if player reloaded during a level
-    const hasResumed = controller.restoreActiveSession();
-    if (!hasResumed) {
-        // Boot up into home screen by default
-        gameState.switchScreen(SCREEN.HOME);
-    }
+    // Always boot to home screen by default on browser load / refresh
+    gameState.switchScreen(SCREEN.HOME);
 });
